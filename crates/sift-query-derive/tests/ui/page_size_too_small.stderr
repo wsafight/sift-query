@@ -1,0 +1,5 @@
+error: max_page_size must be at least the default page size of 15
+ --> tests/ui/page_size_too_small.rs:7:8
+  |
+7 | struct SmallPage {
+  |        ^^^^^^^^^

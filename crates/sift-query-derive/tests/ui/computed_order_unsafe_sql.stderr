@@ -1,0 +1,5 @@
+error: sort_template contains a forbidden SQL token
+  --> tests/ui/computed_order_unsafe_sql.rs:12:5
+   |
+12 |     distance: FilterOnly<f32>,
+   |     ^^^^^^^^

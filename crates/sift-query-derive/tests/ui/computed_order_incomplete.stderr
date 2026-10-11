@@ -1,0 +1,5 @@
+error: computed ordering requires a sortable FilterOnly field and all sort_from/sort_operator/sort_template options
+  --> tests/ui/computed_order_incomplete.rs:12:5
+   |
+12 |     distance: FilterOnly<f32>,
+   |     ^^^^^^^^

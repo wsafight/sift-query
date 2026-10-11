@@ -1,0 +1,43 @@
+[package]
+name = "sift-query-sqlx-common"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared portable SQL rendering and execution for SiftQuery backends"
+readme = "README.md"
+documentation = "https://docs.rs/sift-query-sqlx-common"
+categories = ["database"]
+
+[features]
+default = []
+axum = ["dep:axum"]
+actix-web = ["dep:actix-web"]
+poem = ["dep:poem"]
+chrono = ["sift-query-core/chrono"]
+decimal = ["sift-query-core/decimal"]
+json = ["sift-query-core/json"]
+serde = ["sift-query-core/serde", "dep:serde", "indexmap/serde"]
+uuid = ["sift-query-core/uuid"]
+
+[dependencies]
+actix-web = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+futures-core.workspace = true
+futures-util.workspace = true
+indexmap.workspace = true
+poem = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+sift-query-algorithm.workspace = true
+sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sqlx = { workspace = true, features = ["runtime-tokio"] }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+
+[lints]
+workspace = true

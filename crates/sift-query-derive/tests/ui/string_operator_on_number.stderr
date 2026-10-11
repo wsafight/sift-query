@@ -1,0 +1,5 @@
+error: string matching and empty operators require a String field
+ --> tests/ui/string_operator_on_number.rs:9:5
+  |
+9 |     id: i64,
+  |     ^^

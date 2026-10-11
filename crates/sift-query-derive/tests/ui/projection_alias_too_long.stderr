@@ -1,0 +1,5 @@
+error: PostgreSQL projection aliases must be at most 63 bytes
+ --> tests/ui/projection_alias_too_long.rs:9:5
+  |
+9 |     id: i64,
+  |     ^^

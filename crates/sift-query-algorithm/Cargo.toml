@@ -1,0 +1,16 @@
+[package]
+name = "sift-query-algorithm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Domain-independent deterministic algorithms and bounded data structures"
+readme = "README.md"
+documentation = "https://docs.rs/sift-query-algorithm"
+homepage = "https://docs.rs/sift-query"
+keywords = ["lru", "cache", "hash"]
+categories = ["algorithms", "data-structures"]
+
+[lints]
+workspace = true

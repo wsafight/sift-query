@@ -1,0 +1,11 @@
+mod array_and_aggregate_type_support;
+mod bind_accounting;
+mod cursors;
+mod distinct_rendering;
+mod grouped_rendering;
+mod predicate_tree_shapes;
+mod shape_identifiers;
+mod sqlsafestr_contract;
+mod support;
+mod targets_and_projections;
+mod text_operators_and_ignore_case;

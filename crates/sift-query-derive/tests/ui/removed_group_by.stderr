@@ -1,0 +1,5 @@
+error: group_by was removed in v0.4; mark fields with kind = GroupKey
+ --> tests/ui/removed_group_by.rs:6:17
+  |
+6 | #[search_entity(group_by = "course_id", stable_order = "course_id:asc")]
+  |                 ^^^^^^^^

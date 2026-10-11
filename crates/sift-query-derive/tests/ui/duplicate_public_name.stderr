@@ -1,0 +1,5 @@
+error: duplicate public field name id
+  --> tests/ui/duplicate_public_name.rs:11:5
+   |
+11 |     other: i64,
+   |     ^^^^^

@@ -1,0 +1,5 @@
+error: InList is not supported for Bytes or JSON fields in M1
+  --> tests/ui/in_list_on_bytes.rs:11:5
+   |
+11 |     blob: Vec<u8>,
+   |     ^^^^

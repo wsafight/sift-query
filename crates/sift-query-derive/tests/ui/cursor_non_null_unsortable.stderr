@@ -1,0 +1,5 @@
+error: cursor_non_null requires a sortable selectable result field
+  --> tests/ui/cursor_non_null_unsortable.rs:10:5
+   |
+10 |     other: i64,
+   |     ^^^^^

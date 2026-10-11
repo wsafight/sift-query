@@ -1,0 +1,5 @@
+error: column contains a forbidden SQL token
+ --> tests/ui/forbidden_sql_in_column.rs:9:5
+  |
+9 |     id: i64,
+  |     ^^

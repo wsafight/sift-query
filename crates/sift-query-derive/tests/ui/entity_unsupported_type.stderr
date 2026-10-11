@@ -1,0 +1,5 @@
+error: unsupported query field type in M1
+  --> tests/ui/entity_unsupported_type.rs:11:12
+   |
+11 |     label: &'static str,
+   |            ^

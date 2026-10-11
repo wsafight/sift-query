@@ -1,0 +1,5 @@
+error: unknown field kind
+ --> tests/ui/unknown_field_kind.rs:8:30
+  |
+8 |     #[search_field(sortable, kind = Weird)]
+  |                              ^^^^^^^^^^^^

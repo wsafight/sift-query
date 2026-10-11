@@ -1,0 +1,5 @@
+error: stable_order item id has no direction
+ --> tests/ui/order_without_direction.rs:7:8
+  |
+7 | struct OrderWithoutDirection {
+  |        ^^^^^^^^^^^^^^^^^^^^^

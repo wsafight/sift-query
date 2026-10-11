@@ -1,0 +1,5 @@
+error: duplicate sqlx rename
+  --> tests/ui/duplicate_sqlx_rename.rs:10:12
+   |
+10 |     #[sqlx(rename = "b")]
+   |            ^^^^^^^^^^^^

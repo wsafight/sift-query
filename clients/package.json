@@ -1,0 +1,6 @@
+{
+  "name": "sift-query-client-examples",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test sift-query.test.ts" }
+}

@@ -1,0 +1,5 @@
+error: duplicate projection source
+ --> tests/ui/projection_duplicate_field_source.rs:9:20
+  |
+9 |     #[search_field(source = "name")]
+  |                    ^^^^^^^^^^^^^^^

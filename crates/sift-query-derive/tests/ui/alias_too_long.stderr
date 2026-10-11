@@ -1,0 +1,5 @@
+error: PostgreSQL result aliases must be at most 63 bytes
+  --> tests/ui/alias_too_long.rs:12:5
+   |
+12 |     id: i64,
+   |     ^^

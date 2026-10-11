@@ -1,0 +1,27 @@
+name: bounded-fuzz
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [raw_params, group_expr, cursor, rsql, native_values]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - run: cargo install cargo-fuzz --locked
+      - run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=120 -max_len=4096
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: |
+            fuzz/artifacts
+            fuzz/corpus

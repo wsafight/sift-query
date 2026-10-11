@@ -1,0 +1,5 @@
+error: sqlx rename_all/flatten is not supported by SearchEntity M1
+ --> tests/ui/entity_sqlx_flatten.rs:6:8
+  |
+6 | #[sqlx(flatten)]
+  |        ^^^^^^^

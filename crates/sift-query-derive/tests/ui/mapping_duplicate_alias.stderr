@@ -1,0 +1,5 @@
+error: duplicate result alias same
+  --> tests/ui/mapping_duplicate_alias.rs:13:9
+   |
+13 |         other: i64
+   |         ^^^^^

@@ -1,0 +1,5 @@
+error: default_order cannot be empty
+ --> tests/ui/empty_default_order.rs:7:8
+  |
+7 | struct EmptyDefaultOrder {
+  |        ^^^^^^^^^^^^^^^^^

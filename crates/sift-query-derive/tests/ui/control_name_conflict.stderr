@@ -1,0 +1,5 @@
+error: field name size conflicts with a default control parameter
+  --> tests/ui/control_name_conflict.rs:10:5
+   |
+10 |     size: i32,
+   |     ^^^^

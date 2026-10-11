@@ -1,0 +1,5 @@
+error: generic projection entities are not supported
+ --> tests/ui/projection_generic_entity.rs:6:39
+  |
+6 | #[search_projection(entity = Container<i64>)]
+  |                                       ^

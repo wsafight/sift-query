@@ -1,0 +1,5 @@
+error: projection fields only support source
+ --> tests/ui/projection_field_option.rs:8:20
+  |
+8 |     #[search_field(nope = "id")]
+  |                    ^^^^

@@ -1,0 +1,49 @@
+[package]
+name = "sift-query-mysql"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "MySQL and MariaDB sqlx backend for SiftQuery"
+readme = "README.md"
+documentation = "https://docs.rs/sift-query-mysql"
+keywords = ["sqlx", "mysql", "mariadb", "query"]
+categories = ["database"]
+
+[features]
+default = []
+axum = ["sift-query-sqlx-common/axum"]
+actix-web = ["sift-query-sqlx-common/actix-web"]
+poem = ["sift-query-sqlx-common/poem"]
+chrono = ["sift-query-sqlx-common/chrono", "sqlx/chrono", "dep:chrono"]
+decimal = ["sift-query-sqlx-common/decimal", "sqlx/rust_decimal", "dep:rust_decimal"]
+json = ["sift-query-sqlx-common/json", "sqlx/json", "dep:serde_json"]
+serde = ["sift-query-sqlx-common/serde", "dep:serde"]
+uuid = ["sift-query-sqlx-common/uuid", "sqlx/uuid", "dep:uuid"]
+# Enable only when RSA password exchange is required by the server.
+rsa = ["sqlx/mysql-rsa"]
+
+[dependencies]
+async-stream.workspace = true
+chrono = { workspace = true, optional = true }
+futures-core.workspace = true
+futures-util.workspace = true
+indexmap.workspace = true
+rust_decimal = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-sqlx-common.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio", "mysql"] }
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
+uuid = { workspace = true, optional = true }
+
+[dev-dependencies]
+sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+sqlx = { workspace = true, features = ["runtime-tokio", "mysql", "macros"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+
+[lints]
+workspace = true

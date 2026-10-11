@@ -1,0 +1,5 @@
+error: SearchEntity does not support generic structs in M1
+ --> tests/ui/generic_entity.rs:7:21
+  |
+7 | struct GenericEntity<T> {
+  |                     ^

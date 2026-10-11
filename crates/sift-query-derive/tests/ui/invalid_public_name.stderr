@@ -1,0 +1,5 @@
+error: public field name must match [A-Za-z][A-Za-z0-9_]* and be at most 64 bytes
+ --> tests/ui/invalid_public_name.rs:9:5
+  |
+9 |     id: i64,
+  |     ^^

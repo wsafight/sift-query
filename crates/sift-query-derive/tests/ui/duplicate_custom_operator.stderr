@@ -1,0 +1,5 @@
+error: custom_operators requires unique ASCII names
+ --> tests/ui/duplicate_custom_operator.rs:6:30
+  |
+6 |     #[search_field(sortable, custom_operators = ["custom", "custom"])]
+  |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

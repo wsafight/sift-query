@@ -1,0 +1,5 @@
+error: operators must not be empty
+ --> tests/ui/empty_operators.rs:8:30
+  |
+8 |     #[search_field(sortable, operators = [])]
+  |                              ^^^^^^^^^^^^^^

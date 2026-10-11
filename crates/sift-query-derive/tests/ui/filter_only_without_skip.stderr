@@ -1,0 +1,5 @@
+error: FilterOnly fields require #[sqlx(skip)] or #[sqlx(default)]
+  --> tests/ui/filter_only_without_skip.rs:12:5
+   |
+12 |     tenant_id: FilterOnly<i64>,
+   |     ^^^^^^^^^

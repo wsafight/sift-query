@@ -1,0 +1,5 @@
+error: SearchProjection requires a struct with named fields
+ --> tests/ui/projection_tuple.rs:7:1
+  |
+7 | struct TupleProjection(i64);
+  | ^^^^^^

@@ -1,0 +1,5 @@
+error: sort_from references an unknown public field
+  --> tests/ui/computed_order_unknown_source.rs:12:5
+   |
+12 |     distance: FilterOnly<f32>,
+   |     ^^^^^^^^

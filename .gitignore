@@ -1,0 +1,14 @@
+target/
+fuzz/target/
+fuzz/artifacts/
+fuzz/corpus/*/*
+!fuzz/corpus/*/basic
+!fuzz/corpus/*/regression-*
+**/proptest-regressions/
+artifacts/performance-baseline/
+.idea/
+*.iml
+.DS_Store
+
+
+reference/

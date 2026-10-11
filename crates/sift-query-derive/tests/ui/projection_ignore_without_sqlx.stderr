@@ -1,0 +1,5 @@
+error: search_ignore requires #[sqlx(skip)] or #[sqlx(default)]
+ --> tests/ui/projection_ignore_without_sqlx.rs:9:5
+  |
+9 |     #[search_ignore]
+  |     ^

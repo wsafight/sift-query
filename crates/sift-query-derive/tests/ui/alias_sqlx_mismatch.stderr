@@ -1,0 +1,5 @@
+error: result_alias must match #[sqlx(rename)]
+  --> tests/ui/alias_sqlx_mismatch.rs:10:5
+   |
+10 |     id: i64,
+   |     ^^

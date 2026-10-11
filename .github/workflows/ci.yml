@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: sift
+          POSTGRES_PASSWORD: sift
+          POSTGRES_DB: sift_query_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sift -d sift_query_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sift_query_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: sift_query_test
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "mariadb-admin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://sift:sift@localhost:5432/sift_query_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: bash scripts/check-source-lines.sh
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo clippy -p sift-query-core --all-targets --no-default-features -- -D warnings
+      - run: cargo check -p sift-query --no-default-features
+      - run: cargo check -p sift-query-sqlx --no-default-features
+      - run: bash scripts/check-features.sh
+      - run: bash scripts/check-backend-isolation.sh
+      - run: cargo test --workspace --all-features
+      - run: cargo test -p sift-query-core --no-default-features
+      - run: cargo test -p sift-query-sqlx --all-features --lib -- --ignored
+      - run: cargo test -p sift-query-sqlx --all-features --test postgres --test p0_postgres -- --ignored
+      - run: cargo test -p sift-query-sqlx --all-features --test native_postgres --test rls_postgres --test pool_router --test product_alignment -- --ignored
+      - run: cargo test -p sift-query-sqlite --all-features --test basic
+      - run: DATABASE_URL=mysql://root:root@127.0.0.1:3306/sift_query_test cargo test -p sift-query-mysql --all-features --test basic -- --ignored --test-threads=1
+      - run: DATABASE_URL=mysql://root:root@127.0.0.1:3307/sift_query_test cargo test -p sift-query-mysql --all-features --test basic -- --ignored --test-threads=1
+      - run: cargo doc --workspace --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: bash scripts/check-packages.sh
+
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test clients/sift-query.test.ts

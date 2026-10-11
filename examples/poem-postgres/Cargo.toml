@@ -1,0 +1,17 @@
+[package]
+name = "sift-query-example-poem-postgres"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+poem.workspace = true
+serde = { workspace = true, features = ["derive"] }
+sift-query = { version = "0.1.0", path = "../../crates/sift-query", features = ["poem"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

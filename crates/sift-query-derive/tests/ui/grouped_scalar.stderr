@@ -1,0 +1,5 @@
+error: grouped entities cannot return Scalar fields; use GroupKey, Aggregate, or FilterOnly
+ --> tests/ui/grouped_scalar.rs:7:8
+  |
+7 | struct GroupedScalar {
+  |        ^^^^^^^^^^^^^

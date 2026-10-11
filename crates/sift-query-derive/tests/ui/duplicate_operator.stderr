@@ -1,0 +1,5 @@
+error: duplicate operator Eq
+ --> tests/ui/duplicate_operator.rs:8:30
+  |
+8 |     #[search_field(sortable, operators = [Eq, Eq])]
+  |                              ^^^^^^^^^^^^^^^^^^^^

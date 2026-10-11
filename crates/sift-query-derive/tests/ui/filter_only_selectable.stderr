@@ -1,0 +1,5 @@
+error: FilterOnly fields cannot be selectable
+  --> tests/ui/filter_only_selectable.rs:13:5
+   |
+13 |     tenant: FilterOnly<i64>,
+   |     ^^^^^^

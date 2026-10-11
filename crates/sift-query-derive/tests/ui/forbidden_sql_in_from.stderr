@@ -1,0 +1,5 @@
+error: from contains a forbidden SQL token
+ --> tests/ui/forbidden_sql_in_from.rs:7:8
+  |
+7 | struct BadFrom {
+  |        ^^^^^^^

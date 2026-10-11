@@ -1,0 +1,18 @@
+[package]
+name = "sift-query-example-axum-postgres"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+axum.workspace = true
+serde = { workspace = true, features = ["derive"] }
+sift-query = { version = "0.1.0", path = "../../crates/sift-query", features = ["axum", "metadata"] }
+serde_json.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros"] }
+tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread"] }
+
+[lints]
+workspace = true

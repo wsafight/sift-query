@@ -1,0 +1,5 @@
+error: SearchEntity can only be derived for structs
+ --> tests/ui/enum_entity.rs:7:6
+  |
+7 | enum EnumEntity {
+  |      ^^^^^^^^^^

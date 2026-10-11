@@ -1,0 +1,5 @@
+error: JSON fields are decode-only in M1; set filterable = false or expose a scalar cast
+  --> tests/ui/json_field_filterable.rs:10:5
+   |
+10 |     payload: serde_json::Value,
+   |     ^^^^^^^

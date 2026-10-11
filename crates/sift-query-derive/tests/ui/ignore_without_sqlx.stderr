@@ -1,0 +1,5 @@
+error: search_ignore requires #[sqlx(skip)] or #[sqlx(default)]
+  --> tests/ui/ignore_without_sqlx.rs:10:5
+   |
+10 |     #[search_ignore]
+   |     ^

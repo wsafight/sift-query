@@ -1,0 +1,5 @@
+error: kind = FilterOnly requires the Rust type FilterOnly<T>, and vice versa
+  --> tests/ui/filter_only_kind_mismatch.rs:12:13
+   |
+12 |     tenant: i64,
+   |             ^^^

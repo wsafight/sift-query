@@ -1,0 +1,5 @@
+error: SearchEntity requires at least one query field
+ --> tests/ui/no_query_fields.rs:7:8
+  |
+7 | struct NoFields {
+  |        ^^^^^^^^

@@ -1,0 +1,5 @@
+error: unknown search_entity option
+ --> tests/ui/unknown_entity_option.rs:6:42
+  |
+6 | #[search_entity(stable_order = "id:asc", nope = "1")]
+  |                                          ^^^^

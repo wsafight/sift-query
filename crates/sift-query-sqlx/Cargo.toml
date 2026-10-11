@@ -1,0 +1,73 @@
+[package]
+name = "sift-query-sqlx"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "PostgreSQL renderer and sqlx executor for SiftQuery"
+readme = "README.md"
+documentation = "https://docs.rs/sift-query-sqlx"
+homepage = "https://docs.rs/sift-query"
+keywords = ["sqlx", "postgres", "query"]
+categories = ["database", "web-programming"]
+
+[features]
+default = []
+axum = ["dep:axum"]
+actix-web = ["dep:actix-web"]
+poem = ["dep:poem"]
+chrono = ["sift-query-core/chrono", "sqlx/chrono", "dep:chrono"]
+decimal = ["sift-query-core/decimal", "sqlx/rust_decimal", "dep:rust_decimal"]
+json = ["sift-query-core/json", "sqlx/json"]
+serde = ["sift-query-core/serde", "dep:serde", "indexmap/serde"]
+uuid = ["sift-query-core/uuid", "sqlx/uuid", "dep:uuid"]
+postgres-types = ["sift-query-core/postgres-types", "json", "sqlx/ipnet", "dep:ipnet"]
+postgres-search = []
+pg-trgm = ["postgres-search"]
+postgis = ["postgres-search", "dep:wkt"]
+ltree = ["postgres-search"]
+rls = []
+
+[dependencies]
+actix-web = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+poem = { workspace = true, optional = true }
+async-stream.workspace = true
+chrono = { workspace = true, optional = true }
+futures-core.workspace = true
+futures-util.workspace = true
+indexmap.workspace = true
+ipnet = { version = "2.12", optional = true }
+rust_decimal = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json.workspace = true
+sift-query-algorithm.workspace = true
+sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-sqlx-common.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros", "json"] }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["io-util", "sync", "time"] }
+tracing.workspace = true
+uuid = { workspace = true, optional = true }
+wkt = { version = "0.14", default-features = false, optional = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+proptest = "1.11.0"
+tracing-subscriber = { version = "0.3.20", features = ["fmt"] }
+criterion.workspace = true
+serde_json.workspace = true
+sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[bench]]
+name = "core_pipeline"
+harness = false
+
+[[bench]]
+name = "postgres_workload"
+harness = false

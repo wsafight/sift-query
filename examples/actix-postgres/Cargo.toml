@@ -1,0 +1,16 @@
+[package]
+name = "sift-query-example-actix-postgres"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+actix-web.workspace = true
+serde = { workspace = true, features = ["derive"] }
+sift-query = { version = "0.1.0", path = "../../crates/sift-query", features = ["actix-web"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros"] }
+
+[lints]
+workspace = true

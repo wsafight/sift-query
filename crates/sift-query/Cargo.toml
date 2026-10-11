@@ -1,0 +1,66 @@
+[package]
+name = "sift-query"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A parameter-driven, read-only query layer for Rust"
+readme = "README.md"
+documentation = "https://docs.rs/sift-query"
+homepage = "https://docs.rs/sift-query"
+keywords = ["sqlx", "query", "postgres", "filter", "search"]
+categories = ["database", "web-programming"]
+
+[features]
+default = ["postgres", "chrono", "decimal", "json", "serde", "uuid"]
+postgres = ["dep:sift-query-sqlx"]
+mysql = ["dep:sift-query-mysql"]
+sqlite = ["dep:sift-query-sqlite"]
+mysql-axum = ["mysql", "sift-query-mysql/axum"]
+mysql-actix-web = ["mysql", "sift-query-mysql/actix-web"]
+mysql-poem = ["mysql", "sift-query-mysql/poem"]
+sqlite-axum = ["sqlite", "sift-query-sqlite/axum"]
+sqlite-actix-web = ["sqlite", "sift-query-sqlite/actix-web"]
+sqlite-poem = ["sqlite", "sift-query-sqlite/poem"]
+axum = ["postgres", "sift-query-sqlx/axum"]
+actix-web = ["postgres", "sift-query-sqlx/actix-web"]
+poem = ["postgres", "sift-query-sqlx/poem"]
+chrono = ["sift-query-core/chrono", "sift-query-sqlx?/chrono", "sift-query-mysql?/chrono", "sift-query-sqlite?/chrono"]
+decimal = ["sift-query-core/decimal", "sift-query-sqlx?/decimal", "sift-query-mysql?/decimal"]
+json = ["sift-query-core/json", "sift-query-sqlx?/json", "sift-query-mysql?/json", "sift-query-sqlite?/json"]
+serde = [
+    "sift-query-core/serde",
+    "sift-query-sqlx?/serde",
+    "sift-query-mysql?/serde",
+    "sift-query-sqlite?/serde",
+]
+uuid = ["sift-query-core/uuid", "sift-query-sqlx?/uuid", "sift-query-mysql?/uuid", "sift-query-sqlite?/uuid"]
+mysql-chrono = ["mysql", "sift-query-mysql/chrono"]
+mysql-decimal = ["mysql", "sift-query-mysql/decimal"]
+mysql-json = ["mysql", "sift-query-mysql/json"]
+mysql-uuid = ["mysql", "sift-query-mysql/uuid"]
+sqlite-chrono = ["sqlite", "sift-query-sqlite/chrono"]
+sqlite-json = ["sqlite", "sift-query-sqlite/json"]
+sqlite-uuid = ["sqlite", "sift-query-sqlite/uuid"]
+postgres-types = ["postgres", "sift-query-sqlx/postgres-types"]
+postgres-search = ["postgres", "sift-query-sqlx/postgres-search"]
+pg-trgm = ["postgres-search", "sift-query-sqlx/pg-trgm"]
+postgis = ["postgres-search", "sift-query-sqlx/postgis"]
+ltree = ["postgres-search", "sift-query-sqlx/ltree"]
+metadata = ["json", "sift-query-core/metadata"]
+rsql = ["sift-query-core/rsql"]
+rls = ["postgres", "sift-query-sqlx/rls"]
+
+[dependencies]
+sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+sift-query-sqlx = { version = "0.1.0", path = "../sift-query-sqlx", optional = true }
+sift-query-mysql = { version = "0.1.0", path = "../sift-query-mysql", optional = true }
+sift-query-sqlite = { version = "0.1.0", path = "../sift-query-sqlite", optional = true }
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros"] }
+
+[lints]
+workspace = true

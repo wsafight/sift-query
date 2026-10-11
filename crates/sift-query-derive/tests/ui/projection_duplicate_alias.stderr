@@ -1,0 +1,5 @@
+error: duplicate projection alias id
+  --> tests/ui/projection_duplicate_alias.rs:10:5
+   |
+10 |     other: i64,
+   |     ^^^^^

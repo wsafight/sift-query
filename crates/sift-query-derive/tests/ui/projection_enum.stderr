@@ -1,0 +1,5 @@
+error: SearchProjection can only be derived for structs
+ --> tests/ui/projection_enum.rs:7:6
+  |
+7 | enum EnumProjection {
+  |      ^^^^^^^^^^^^^^

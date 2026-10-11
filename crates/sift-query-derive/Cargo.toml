@@ -1,0 +1,29 @@
+[package]
+name = "sift-query-derive"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Derive macros for SiftQuery entities"
+readme = "README.md"
+documentation = "https://docs.rs/sift-query-derive"
+homepage = "https://docs.rs/sift-query"
+keywords = ["derive", "query", "sqlx"]
+categories = ["database", "development-tools::procedural-macro-helpers"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+sift-query-algorithm.workspace = true
+syn.workspace = true
+
+[dev-dependencies]
+sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+trybuild = "1.0.114"
+
+[lints]
+workspace = true

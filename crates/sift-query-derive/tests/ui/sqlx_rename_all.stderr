@@ -1,0 +1,5 @@
+error: sqlx rename_all/flatten is not supported by SearchEntity M1
+ --> tests/ui/sqlx_rename_all.rs:6:8
+  |
+6 | #[sqlx(rename_all = "snake_case")]
+  |        ^^^^^^^^^^

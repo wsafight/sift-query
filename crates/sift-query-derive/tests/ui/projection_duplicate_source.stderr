@@ -1,0 +1,5 @@
+error: duplicate projection source id
+  --> tests/ui/projection_duplicate_source.rs:11:5
+   |
+11 |     other: i64,
+   |     ^^^^^

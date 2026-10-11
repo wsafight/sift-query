@@ -1,0 +1,46 @@
+[package]
+name = "sift-query-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Backend-independent query model and strict parameter parser for SiftQuery"
+readme = "README.md"
+documentation = "https://docs.rs/sift-query-core"
+homepage = "https://docs.rs/sift-query"
+keywords = ["query", "filter", "parser"]
+categories = ["database", "parsing"]
+
+[features]
+default = []
+chrono = ["dep:chrono", "dep:chrono-tz"]
+decimal = ["dep:rust_decimal"]
+json = ["dep:serde_json"]
+serde = ["dep:serde", "ipnet?/serde"]
+uuid = ["dep:uuid"]
+postgres-types = ["json", "dep:ipnet"]
+metadata = ["json"]
+rsql = []
+
+[dependencies]
+base64.workspace = true
+ipnet = { version = "2.12", optional = true }
+chrono = { workspace = true, optional = true, features = ["std"] }
+chrono-tz = { workspace = true, optional = true }
+hmac.workspace = true
+indexmap.workspace = true
+rust_decimal = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true, features=["arbitrary_precision"] }
+sha2.workspace = true
+sift-query-algorithm.workspace = true
+thiserror.workspace = true
+uuid = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = "1.11.0"
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,13 @@
+error: cyclic or too deep field fragment inclusion
+ --> tests/ui/mapping_cycle.rs:5:26
+  |
+5 |     fields Two { include One; }
+  |                          ^^^
+
+warning: unused import: `SearchEntity`
+ --> tests/ui/mapping_cycle.rs:2:25
+  |
+2 | use sift_query_derive::{SearchEntity, search_entities};
+  |                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

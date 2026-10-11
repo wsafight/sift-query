@@ -1,0 +1,5 @@
+error: unknown search_field option
+ --> tests/ui/unknown_field_option.rs:8:30
+  |
+8 |     #[search_field(sortable, nope = "1")]
+  |                              ^^^^

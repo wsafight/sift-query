@@ -1,0 +1,5 @@
+error: SearchProjection does not support generic structs in M2
+ --> tests/ui/projection_generic.rs:7:25
+  |
+7 | struct GenericProjection<T> {
+  |                         ^

@@ -1,0 +1,5 @@
+error: SearchEntity requires a struct with named fields
+ --> tests/ui/tuple_struct.rs:7:1
+  |
+7 | struct TupleEntity(i64);
+  | ^^^^^^

@@ -1,0 +1,5 @@
+error: stable_order field name is not sortable
+ --> tests/ui/order_not_sortable.rs:7:8
+  |
+7 | struct OrderNotSortable {
+  |        ^^^^^^^^^^^^^^^^

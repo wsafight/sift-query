@@ -1,0 +1,5 @@
+error: stable_order is required for M1 entities
+ --> tests/ui/missing_stable_order.rs:6:8
+  |
+6 | struct MissingStableOrder {
+  |        ^^^^^^^^^^^^^^^^^^

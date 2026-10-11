@@ -1,0 +1,52 @@
+[package]
+name = "sift-query-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+sift-query-core = { path = "../crates/sift-query-core", features=["rsql","postgres-types"] }
+base64 = "0.22"
+hmac = "0.12"
+sha2 = "0.10"
+
+[[bin]]
+name = "raw_params"
+path = "fuzz_targets/raw_params.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rsql"
+path = "fuzz_targets/rsql.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "native_values"
+path = "fuzz_targets/native_values.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "group_expr"
+path = "fuzz_targets/group_expr.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cursor"
+path = "fuzz_targets/cursor.rs"
+test = false
+doc = false
+bench = false

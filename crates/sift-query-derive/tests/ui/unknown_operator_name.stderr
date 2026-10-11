@@ -1,0 +1,5 @@
+error: unknown operator Nope
+ --> tests/ui/unknown_operator_name.rs:8:43
+  |
+8 |     #[search_field(sortable, operators = [Nope])]
+  |                                           ^^^^

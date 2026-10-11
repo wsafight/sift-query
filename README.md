@@ -20,6 +20,6 @@ sift-query = { version = "0.1.0", default-features = false, features = ["postgre
 sqlx = { version = "0.9", default-features = false, features = ["postgres", "runtime-tokio", "macros"] }
 ```
 
-发布前也可使用本地 path 依赖。最低 Rust 版本为 1.99.0；当前处于 0.x 开发阶段。
+0.1.0 已发布到 [crates.io](https://crates.io/crates/sift-query)，源码见 [GitHub](https://github.com/wsafight/sift-query)。最低 Rust 版本为 1.99.0；当前 API 为 pre-1.0。
 
 参见 [文档索引](docs/README.md)、[实现状态](docs/06-STATUS.md)、[变更记录](CHANGELOG.md) 和 [发布指南](docs/11-RELEASE-AND-BACKENDS.md)。Apache-2.0 许可证见 [LICENSE](LICENSE)。

@@ -1,6 +1,6 @@
 # SiftQuery M2 Rust API
 
-本文件定义 v0.4 的公开 Rust 类型和 API 合同。代码块反映当前实现；省略的 trait bound 或私有字段不改变对应行为合同。
+本文件定义 0.1.0 的公开 Rust 类型和 API 合同。代码块反映当前实现；省略的 trait bound 或私有字段不改变对应行为合同。
 
 ## 1. Cargo 与 feature
 
@@ -9,7 +9,7 @@
 ```toml
 [dependencies]
 sift-query = { version = "0.1", features = ["postgres", "chrono"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres", "chrono"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 serde = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }

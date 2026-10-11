@@ -22,7 +22,7 @@ portable 后端的 HTTP 参数 adapter 位于 `sift-query-sqlx-common`，不包�
 
 `scripts/check-backend-isolation.sh` 检查正常依赖图；测试依赖与工作区其他示例不代表用户安装依赖。PG 专项能力使用单独 feature，不能导致普通查询自动探测扩展、开启事务或额外访问数据库。缓存仅缓存 SQL 模板，重新绑定当前值。
 
-当前验证矩阵：Rust 1.99.0、sqlx 0.9、PostgreSQL 17、CI 中的 MySQL 8.4 与 MariaDB 11.4，以及 SQLite 文件/内存数据库；三者均有真实查询回归，SQLite 另有事务入口和取消后连接复用回归。MariaDB 与 MySQL 共用 SQLx 驱动，CI 已配置独立服务回归；本地环境未运行 MySQL/MariaDB 服务，取消、输出失败、连接复用等完整故障矩阵仍需发布环境执行。CI 分别验证每个后端 feature，不把 workspace `all-features` 当作单后端安装结果。
+当前验证矩阵：Rust 1.99.0、sqlx 0.9、PostgreSQL 17、CI 中的 MySQL 8.4 与 MariaDB 11.4，以及 SQLite 文件/内存数据库；三者均有真实查询回归，SQLite 另有事务入口和取消后连接复用回归。MariaDB 与 MySQL 共用 SQLx 驱动，GitHub CI 已通过两者的独立服务回归及 scan/export 后的连接复用检查；取消和输出失败的完整故障矩阵仍待补充。CI 分别验证每个后端 feature，不把 workspace `all-features` 当作单后端安装结果。
 
 代码中的 `backend_capabilities(BackendKind)` 是部署前能力矩阵；它不会替代 MySQL、MariaDB 和 PostgreSQL 服务的真实集成测试。
 
@@ -30,4 +30,4 @@ portable 后端的 HTTP 参数 adapter 位于 `sift-query-sqlx-common`，不包�
 
 本地发布门禁：格式、Clippy、测试、依赖隔离、文档和 `bash scripts/check-packages.sh`。脚本运行 `cargo package --workspace --all-features --allow-dirty --target-dir <独立临时目录>`，包含实际解包编译。未发布草稿反复使用同一 0.1.0 版本时，Cargo 会缓存临时 registry 的旧源码；独立 target 路径避免取到上次草稿，且不删除用户的全局缓存。生成目录随命令输出保留供检查。包内 README、LICENSE 必须可独立读取，不能依赖工作区外路径。fuzz 独立工作区不进入生产依赖。
 
-当前为未发布 0.1.0；本地打包已验证。公共仓库地址、维护者安全联系方式、crates.io 名称/所有权、真实远端 CI 与注册表安装还需在正式发布环境配置并验证，不能把本地成功记为已发布。发布不由本地检查脚本自动执行。
+0.1.0 的 8 个库 crate 已发布到 crates.io，源码位于 [wsafight/sift-query](https://github.com/wsafight/sift-query)。发布源码 commit 为 `944fd5c34ba0a018c7b0fd2537e0959642e9c872`；[GitHub CI](https://github.com/wsafight/sift-query/actions/runs/38136340777) 已通过 PostgreSQL、MySQL、MariaDB、SQLite 与客户端检查。已从注册表下载全部包核对源码 commit、README 和 LICENSE，并用无 path 依赖的独立项目验证安装、derive、metadata、三个后端以及 SQLite typed/map/count 和当前值重新绑定。私密安全报告入口见 [SECURITY.md](../SECURITY.md)。发布不由本地检查脚本自动执行。

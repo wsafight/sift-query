@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — Unreleased
+## 0.1.0 — 2026-10-11
 
 - PostgreSQL typed and dynamic read-only queries, projections, grouping and summaries.
 - Strict parameter budgets, server scopes, signed keyset cursors and optional snapshot execution.
@@ -15,5 +15,9 @@
 - Backend isolation/package checks, property tests and five scheduled fuzz targets; exact JSON number RPC regression fixed.
 - Source modules grouped by responsibility with unchanged public import paths; shared checked budgets, ASCII name validation and lazy TTL/LRU cache algorithms.
 - Added PostgreSQL `validate_schema` startup/CI checks backed by `EXPLAIN`, trusted-context `ScopeProvider` authorization entry points across all execution backends, and bounded PostgreSQL facets over server-declared read-model fields.
+- Independent MySQL/MariaDB and SQLite backends with typed/map queries, summaries, cursor pages, bounded scans, CSV export and web adapters.
+- Field access policies, server-declared EXISTS predicates, DISTINCT/facet semantics, metadata-based TypeScript query builders, schema result-type checks, query diagnostics and time/numeric buckets.
+- Entity validation caches, precomputed codec bindings, portable SQL template caches, reduced parser/rendering allocations and reusable CSV buffers.
+- Release archives and registry installation verified after PostgreSQL, MySQL, MariaDB and SQLite CI checks.
 
-This is an unreleased development version. Availability on crates.io is not implied.
+All eight workspace library crates are available on crates.io at 0.1.0. The public API is pre-1.0.

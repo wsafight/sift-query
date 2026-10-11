@@ -165,4 +165,4 @@ let policy = QueryPolicy::default()
 
 新增 core `rpc` / `business_codecs`、facade `product_alignment`、sqlx `pool_router` / `product_alignment` 和 derive compile-fail 回归。真实 PostgreSQL 17.11 用例在独立临时测试库创建两套相同表结构和两个独立 pool，验证并发路由、数据隔离、配置和模板缓存隔离、路由日志、typed/RowMap、count/scan/CSV、自定义运算符绑定及 RPC 经 GET/POST 的结果等价。
 
-这些功能的完成不代表 GA 发布门禁通过；发布依赖图、远端 CI、fuzz 和正式部署性能基线的剩余状态见 [06-STATUS.md](./06-STATUS.md) 与 [14-PERFORMANCE-BASELINE.md](./14-PERFORMANCE-BASELINE.md)。
+这些功能的完成不代表 GA 发布门禁通过；发布证据、fuzz 与部署性能基线的状态见 [06-STATUS.md](./06-STATUS.md) 与 [14-PERFORMANCE-BASELINE.md](./14-PERFORMANCE-BASELINE.md)。

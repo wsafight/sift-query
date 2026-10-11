@@ -22,4 +22,6 @@ sqlx = { version = "0.9", default-features = false, features = ["postgres", "run
 
 0.1.0 已发布到 [crates.io](https://crates.io/crates/sift-query)，源码见 [GitHub](https://github.com/wsafight/sift-query)。最低 Rust 版本为 1.99.0；当前 API 为 pre-1.0。
 
+从[安装](docs/guides/zh/installation.md)、[快速开始](docs/guides/zh/quick-start.md)和[数据库选择](docs/guides/zh/backend-selection.md)开始。项目已添加基于 app-struct UI 的中英文文档站点，本地运行及 GitHub Pages 部署见 [site/README.md](site/README.md)。
+
 参见 [文档索引](docs/README.md)、[实现状态](docs/06-STATUS.md)、[变更记录](CHANGELOG.md) 和 [发布指南](docs/11-RELEASE-AND-BACKENDS.md)。Apache-2.0 许可证见 [LICENSE](LICENSE)。

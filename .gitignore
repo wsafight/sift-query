@@ -12,3 +12,12 @@ artifacts/performance-baseline/
 
 
 reference/
+
+site/node_modules/
+site/.astro/
+site/.generated/
+site/dist/
+site/public/source/
+site/public/version.json
+site/playwright-report/
+site/test-results/

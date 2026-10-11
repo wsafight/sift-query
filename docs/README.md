@@ -1,8 +1,8 @@
-# SiftQuery v0.4 规格索引
+# SiftQuery 文档索引
 
 > Rust 生态中参数驱动的只读查询层。实体声明查询边界，参数描述查询意图，框架生成安全、确定且可观测的 SQL。
 
-状态：M2/P0 产品功能及 P1/P2 首版实现完成，发布验证中
+当前发布：0.1.0，8 个库 crate 已发布到 crates.io，API 为 pre-1.0。设计规范版本 v0.4 与 crate 版本分开管理。
 
 主数据库合同：PostgreSQL；MySQL/MariaDB 与 SQLite 通过独立后端 crate 提供核心查询路径
 
@@ -11,6 +11,16 @@
 异步运行时：tokio
 
 参考实现：Bean Searcher 4.8.12（Java）
+
+## 从使用开始
+
+- [安装](guides/zh/installation.md)：选择数据库和 feature。
+- [快速开始](guides/zh/quick-start.md)：完整可运行的 SQLite 示例。
+- [查询示例](guides/zh/query-cookbook.md)：筛选、排序、投影与分页。
+- [选择数据库后端](guides/zh/backend-selection.md)：共有能力和 PostgreSQL 专属能力。
+- [English overview](guides/en/overview.md)：英文入门与精简参考指南。
+
+站点 UI 沿用 app-struct，提供中英文切换、全文搜索、主题、移动导航和页内目录。本地运行与部署说明见 [site/README.md](../site/README.md)。
 
 ## 1. 文档结构
 
@@ -30,6 +40,7 @@
 12. [12-POSTGRES-CAPABILITIES.md](./12-POSTGRES-CAPABILITIES.md)：可选全文、JSONB、原生值、扩展、受控排序和索引指南。
 13. [13-ECOSYSTEM.md](./13-ECOSYSTEM.md)：安全元数据/OpenAPI、RSQL 子集与事务内 RLS 上下文。
 14. [14-PERFORMANCE-BASELINE.md](./14-PERFORMANCE-BASELINE.md)：本地与目标环境性能基线的采集方式和边界。
+15. [15-PRODUCT-ENHANCEMENTS.md](./15-PRODUCT-ENHANCEMENTS.md)：能力矩阵、CSV、Label、可信路由、Codec 与受控 SQL 扩展。
 
 发生冲突时，优先级为：
 
@@ -40,7 +51,7 @@
 5. `06-STATUS.md` 只描述实现状态，不修改规范语义。
 6. `07-BEAN-SEARCHER-CONFORMANCE.md` 只定义兼容测试范围，不覆盖 v0.4 的严格语义。
 
-根目录的 `SIFTQUERY-SPEC.md` 是 v0.3 设计输入，不再作为 v0.4 的实现依据。
+早期 v0.3 设计不作为当前实现依据；当前发布事实以 `11-RELEASE-AND-BACKENDS.md` 与 `CHANGELOG.md` 为准。
 
 ## 2. 规范用语
 
@@ -73,7 +84,7 @@
 - 完整 QueryBuilder RPC、HTTP 自定义运算符白名单、编译期映射复用、命名/可信上下文多 pool 路由、时间/时区/列表 Codec；详见 `10-BEAN-SEARCHER-PRODUCT-ALIGNMENT.md`。
 - 可选 PostgreSQL 原生搜索、array/range/network、pg_trgm/ltree/PostGIS、metadata/OpenAPI、RSQL 和 RLS；详见 12/13。
 
-PostgreSQL 专属扩展和完整 P0 生产能力不会自动进入其他后端；MySQL/SQLite 已对齐核心分页、count、summaries、外部连接入口、Codec、安全 scan、CSV 流式导出、Web 参数 adapter 和基础 PageEnricher/Label/QueryObserver，剩余工作是 MariaDB 真实服务的取消、输出失败、连接复用等故障矩阵及远端环境验收。所有后端都不接受来自 HTTP 的任意 SQL、表名或列名。Query Shape Cache 只缓存 SQL 模板，不缓存查询结果。
+PostgreSQL 专属扩展和完整 P0 生产能力不会自动进入其他后端；MySQL/SQLite 已对齐核心分页、count、summaries、外部连接入口、Codec、安全 scan、CSV 流式导出、Web 参数 adapter 和基础 PageEnricher/Label/QueryObserver，MySQL/MariaDB 真实服务回归与 scan/export 后连接复用已通过发布 CI；完整取消、输出失败故障矩阵与目标环境性能验收仍待补充。所有后端都不接受来自 HTTP 的任意 SQL、表名或列名。Query Shape Cache 只缓存 SQL 模板，不缓存查询结果。
 
 ## 4. v0.4 解决的关键问题
 

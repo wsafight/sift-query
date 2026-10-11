@@ -1,0 +1,68 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'docs/**', 'README.md', 'CHANGELOG.md', 'SECURITY.md', 'LICENSE', 'Cargo.toml', '.github/workflows/docs.yml']
+  pull_request:
+    paths: ['site/**', 'docs/**', 'README.md', 'CHANGELOG.md', 'SECURITY.md', 'LICENSE', 'Cargo.toml', '.github/workflows/docs.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DOCS_SITE: ${{ vars.DOCS_SITE }}
+      DOCS_BASE: ${{ vars.DOCS_BASE }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+          package_json_file: site/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - run: pnpm --dir site install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.0
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm --dir site test:example
+      - run: pnpm --dir site check
+      - run: pnpm --dir site build
+      - run: pnpm --dir site exec playwright install --with-deps chromium
+      - run: pnpm --dir site test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: docs-test-results
+          path: site/test-results
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: site/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

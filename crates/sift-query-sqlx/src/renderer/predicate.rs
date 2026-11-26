@@ -132,6 +132,12 @@ fn render_condition(
             Ok(format!("{column} {operator} {placeholder}"))
         }
         Operator::OrLike => {
+            if condition.values.is_empty() {
+                return Err(RenderError::InvalidCondition(format!(
+                    "{} requires at least one pattern",
+                    field.public_name
+                )));
+            }
             let operator = if condition.ignore_case {
                 "ILIKE"
             } else {

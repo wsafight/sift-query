@@ -14,23 +14,32 @@ pub(super) fn render_cursor<E: SearchEntity>(
     }
     let mut alternatives = Vec::new();
     for (index, (order, value)) in plan.order.iter().copied().zip(values).enumerate() {
-        let mut terms = Vec::new();
-        for (previous, previous_value) in plan.order.iter().zip(values).take(index) {
-            let field = plan
-                .meta
-                .field(previous.field)
-                .ok_or(RenderError::UnknownField(previous.field.0))?;
-            terms.push(match previous_value {
-                sift_query_core::CursorValue::Null => format!("{} IS NULL", field.column),
-                sift_query_core::CursorValue::Scalar(value) => {
-                    format!("{} = {}", field.column, state.bind(value.clone()))
-                }
-            });
-        }
         let field = plan
             .meta
             .field(order.field)
             .ok_or(RenderError::UnknownField(order.field.0))?;
+        if matches!(
+            (order.nulls, value),
+            (
+                sift_query_core::NullOrder::Last,
+                sift_query_core::CursorValue::Null
+            )
+        ) {
+            continue;
+        }
+        let mut terms = Vec::new();
+        for (previous, previous_value) in plan.order.iter().zip(values).take(index) {
+            let previous_field = plan
+                .meta
+                .field(previous.field)
+                .ok_or(RenderError::UnknownField(previous.field.0))?;
+            terms.push(match previous_value {
+                sift_query_core::CursorValue::Null => format!("{} IS NULL", previous_field.column),
+                sift_query_core::CursorValue::Scalar(value) => {
+                    format!("{} = {}", previous_field.column, state.bind(value.clone()))
+                }
+            });
+        }
         let comparison = match (order.direction, order.nulls, value) {
             (_, _, sift_query_core::CursorValue::Null) => match order.nulls {
                 sift_query_core::NullOrder::Last => None,

@@ -15,19 +15,6 @@ pub(super) fn render_cursor<E: SearchEntity>(
     }
     let mut alternatives = Vec::new();
     for (index, (order, value)) in plan.order.iter().copied().zip(values).enumerate() {
-        let mut terms = Vec::new();
-        for (previous_order, previous_value) in plan.order.iter().zip(values).take(index) {
-            let field = plan
-                .meta
-                .field(previous_order.field)
-                .ok_or(RenderError::UnknownField(previous_order.field.0))?;
-            terms.push(cursor_equal(
-                field.column,
-                previous_value,
-                E::cursor_key_non_null(previous_order.field),
-                state,
-            ));
-        }
         let field = plan
             .meta
             .field(order.field)
@@ -35,6 +22,22 @@ pub(super) fn render_cursor<E: SearchEntity>(
         if E::cursor_key_non_null(order.field) && matches!(value, CursorValue::Null) {
             return Err(RenderError::InvalidCondition(
                 "non-null cursor key cannot contain NULL".to_owned(),
+            ));
+        }
+        if matches!((order.nulls, value), (NullOrder::Last, CursorValue::Null)) {
+            continue;
+        }
+        let mut terms = Vec::new();
+        for (previous_order, previous_value) in plan.order.iter().zip(values).take(index) {
+            let previous_field = plan
+                .meta
+                .field(previous_order.field)
+                .ok_or(RenderError::UnknownField(previous_order.field.0))?;
+            terms.push(cursor_equal(
+                previous_field.column,
+                previous_value,
+                E::cursor_key_non_null(previous_order.field),
+                state,
             ));
         }
         if let Some(comparison) = cursor_after(

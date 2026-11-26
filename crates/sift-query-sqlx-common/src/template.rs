@@ -225,6 +225,12 @@ impl Template {
             && let PagingMode::Cursor(Some(cursor)) = &plan.paging.mode
         {
             for index in 0..plan.order.len() {
+                if matches!(
+                    (plan.order[index].nulls, cursor.values().get(index)),
+                    (sift_query_core::NullOrder::Last, Some(CursorValue::Null))
+                ) {
+                    continue;
+                }
                 for (previous, value) in cursor.values().iter().take(index).enumerate() {
                     if matches!(value, CursorValue::Scalar(_)) {
                         steps.push(BindStep::Cursor(previous));

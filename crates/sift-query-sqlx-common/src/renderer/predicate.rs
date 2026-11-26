@@ -132,6 +132,12 @@ fn render_condition(
                     })?)
                 };
             let mut parts = Vec::new();
+            if values.is_empty() {
+                return Err(RenderError::InvalidCondition(format!(
+                    "{} requires at least one pattern",
+                    field.public_name
+                )));
+            }
             for value in values {
                 let ScalarValue::Text(value) = value else {
                     return Err(RenderError::InvalidCondition(format!(
@@ -139,11 +145,11 @@ fn render_condition(
                         field.public_name
                     )));
                 };
-                let pattern = match condition.operator {
-                    Operator::StartWith => format!("{}%", escape_like(value)),
-                    Operator::EndWith => format!("%{}", escape_like(value)),
-                    Operator::Contain => format!("%{}%", escape_like(value)),
-                    _ => escape_like(value),
+                let (pattern, needs_escape) = match condition.operator {
+                    Operator::StartWith => (format!("{}%", escape_like(value)), true),
+                    Operator::EndWith => (format!("%{}", escape_like(value)), true),
+                    Operator::Contain => (format!("%{}%", escape_like(value)), true),
+                    _ => (value.clone(), false),
                 };
                 let placeholder = state.bind(ScalarValue::Text(pattern));
                 let like = if condition.operator == Operator::NotLike {
@@ -156,9 +162,11 @@ fn render_condition(
                 } else {
                     format!("{column} {like} {placeholder}")
                 };
-                // A single ASCII escape character avoids dependence on
-                // MySQL's NO_BACKSLASH_ESCAPES SQL mode.
-                op.push_str(" ESCAPE '!'");
+                if needs_escape {
+                    // A single ASCII escape character avoids dependence on
+                    // MySQL's NO_BACKSLASH_ESCAPES SQL mode.
+                    op.push_str(" ESCAPE '!'");
+                }
                 parts.push(op);
             }
             if condition.operator == Operator::OrLike {

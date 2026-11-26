@@ -134,3 +134,46 @@ fn a_null_key_with_nulls_last_has_nothing_left_to_scan() {
     let sql = render(SortOrder::Asc, NullOrder::Last, CursorValue::Null);
     assert!(sql.contains("1 = 0"), "{sql}");
 }
+
+#[test]
+fn skipped_nulls_last_branch_does_not_leak_previous_key_binds() {
+    let codec = CursorCodec::new([3u8; 32]).unwrap();
+    let policy = QueryPolicy::default().with_cursor_codec(codec.clone());
+    let raw = RawParams::parse("cursor=&size=5").unwrap();
+    let parsed = ParamParser::new(&policy)
+        .unwrap()
+        .parse::<User>(&raw)
+        .unwrap();
+    let mut plan = QueryPlan::new(
+        &parsed,
+        &ServerScope::unrestricted(),
+        QueryTarget::TypedPage,
+    )
+    .unwrap();
+    let order = vec![
+        OrderBy {
+            field: FieldId(0),
+            direction: SortOrder::Asc,
+            nulls: NullOrder::Last,
+        },
+        OrderBy {
+            field: FieldId(0),
+            direction: SortOrder::Asc,
+            nulls: NullOrder::Last,
+        },
+    ];
+    let token = codec
+        .encode::<User>(
+            &order,
+            &[CursorValue::Scalar(ScalarValue::I64(10)), CursorValue::Null],
+        )
+        .unwrap();
+    let cursor = codec.decode::<User>(&token, &order).unwrap();
+    plan.order = order;
+    plan.paging.mode = sift_query_core::PagingMode::Cursor(Some(cursor));
+
+    let rendered = PgRenderer.render_list(&plan).unwrap();
+    assert_eq!(rendered.binds.len(), 2, "only key 0 and LIMIT should bind");
+    assert!(rendered.sql.contains("LIMIT $2"), "{}", rendered.sql);
+    assert!(!rendered.sql.contains("$3"), "{}", rendered.sql);
+}

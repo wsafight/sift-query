@@ -131,25 +131,11 @@ impl Renderer {
                 sql.push_str("DISTINCT ");
             }
             sql.push_str(&self.projection(plan, false)?);
-            write!(sql, " FROM {}) sq_source", plan.meta.from).expect("String write");
-            // Rebuild the subquery in the correct order. The temporary suffix is removed below.
-            let start = sql.find(" FROM ").expect("FROM");
-            let projection_end = sql[start..].find(") sq_source").expect("source") + start;
-            let mut body = String::new();
-            write!(body, "SELECT ").expect("String write");
-            if plan.distinct {
-                body.push_str("DISTINCT ");
-            }
-            body.push_str(&self.projection(plan, false)?);
-            write!(body, " FROM {}", plan.meta.from).expect("String write");
-            self.filters(plan, &mut state, &mut body, false)?;
-            self.group_by(plan, &mut body);
-            self.having(plan, &mut state, &mut body)?;
-            sql.truncate(start);
-            sql.push_str(" FROM (");
-            sql.push_str(&body);
+            write!(sql, " FROM {}", plan.meta.from).expect("String write");
+            self.filters(plan, &mut state, &mut sql, false)?;
+            self.group_by(plan, &mut sql);
+            self.having(plan, &mut state, &mut sql)?;
             sql.push_str(") sq_source");
-            let _ = projection_end;
         } else {
             sql.push_str("SELECT COUNT(*) AS sq_count");
             write!(sql, " FROM {}", plan.meta.from).expect("String write");
@@ -428,17 +414,28 @@ impl Renderer {
                         .replace("{field}", field.column)
                         .replace("{0}", state.bind(value.clone())),
                 );
+                sql.push_str(match order.direction {
+                    SortOrder::Asc => " ASC",
+                    SortOrder::Desc => " DESC",
+                });
             } else {
-                sql.push_str(field.column);
+                match (order.direction, order.nulls) {
+                    (SortOrder::Asc, sift_query_core::NullOrder::Last) => {
+                        write!(sql, "{} IS NULL ASC, {} ASC", field.column, field.column)
+                            .expect("String write");
+                    }
+                    (SortOrder::Asc, sift_query_core::NullOrder::First) => {
+                        write!(sql, "{} ASC", field.column).expect("String write");
+                    }
+                    (SortOrder::Desc, sift_query_core::NullOrder::First) => {
+                        write!(sql, "{} IS NULL DESC, {} DESC", field.column, field.column)
+                            .expect("String write");
+                    }
+                    (SortOrder::Desc, sift_query_core::NullOrder::Last) => {
+                        write!(sql, "{} DESC", field.column).expect("String write");
+                    }
+                }
             }
-            if matches!(order.direction, SortOrder::Asc) {
-                sql.push_str(" IS NULL ASC, ");
-                sql.push_str(field.column);
-            }
-            sql.push_str(match order.direction {
-                SortOrder::Asc => " ASC",
-                SortOrder::Desc => " DESC",
-            });
         }
         Ok(())
     }

@@ -54,9 +54,11 @@ pub(super) fn render_order<E: SearchEntity>(
         } else {
             sql.push_str(field.column);
         }
-        sql.push_str(match order.direction {
-            SortOrder::Asc => " ASC NULLS LAST",
-            SortOrder::Desc => " DESC NULLS FIRST",
+        sql.push_str(match (order.direction, order.nulls) {
+            (SortOrder::Asc, sift_query_core::NullOrder::Last) => " ASC NULLS LAST",
+            (SortOrder::Asc, sift_query_core::NullOrder::First) => " ASC NULLS FIRST",
+            (SortOrder::Desc, sift_query_core::NullOrder::Last) => " DESC NULLS LAST",
+            (SortOrder::Desc, sift_query_core::NullOrder::First) => " DESC NULLS FIRST",
         });
     }
     Ok(())

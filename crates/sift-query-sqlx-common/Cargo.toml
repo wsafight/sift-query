@@ -38,6 +38,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]
 workspace = true

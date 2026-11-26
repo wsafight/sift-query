@@ -421,4 +421,26 @@ mod tests {
         assert_eq!(public_error(&error).code, "scan_limit_exceeded");
         assert!(!WebError::from(error).0.body().contains('4'));
     }
+
+    #[tokio::test]
+    async fn chunked_bodies_are_bounded_and_pending_readers_expire() {
+        let config = SearchParamConfig {
+            limits: QueryLimits {
+                max_raw_query_bytes: 3,
+                ..Default::default()
+            },
+            body_timeout: Duration::from_millis(5),
+        };
+        let chunks =
+            futures_util::stream::iter([Ok::<_, ()>(b"id".as_slice()), Ok(b"=1".as_slice())]);
+        assert_eq!(
+            read_body(chunks, &config).await.unwrap_err().0.code,
+            "query_body_too_large"
+        );
+        let pending = futures_util::stream::pending::<Result<Vec<u8>, ()>>();
+        assert_eq!(
+            read_body(pending, &config).await.unwrap_err().0.code,
+            "query_body_timeout"
+        );
+    }
 }

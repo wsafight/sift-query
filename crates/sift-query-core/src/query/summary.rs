@@ -125,6 +125,9 @@ impl<E: SearchEntity> SearchOptions<E> {
     }
 
     fn push(mut self, field_id: FieldId, function: AggregateFn) -> Self {
+        if self.error.is_some() {
+            return self;
+        }
         if self.requests.len() >= 8 {
             self.error = Some(ParamError::TooComplex("summary count"));
         } else if self

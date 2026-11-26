@@ -117,6 +117,17 @@ impl<E: SearchEntity> QueryPlan<E> {
                         }
                         .into());
                     }
+                    if let crate::CursorValue::Scalar(scalar) = value
+                        && E::META
+                            .field(order.field)
+                            .is_none_or(|field| field.value_type != scalar.value_type())
+                    {
+                        return Err(ParamError::InvalidValue {
+                            field: "cursor".to_owned(),
+                            reason: "cursor value type does not match ordering".to_owned(),
+                        }
+                        .into());
+                    }
                 }
             }
             for order in &query.inner.order {

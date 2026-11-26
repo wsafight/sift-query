@@ -124,7 +124,7 @@ impl<'policy, E: SearchEntity> QueryBuilder<'policy, E> {
             .limits()
             .max_page_size
             .min(E::META.limits.max_page_size);
-        if size > max_size || cursor.values().len() != self.final_order_len() {
+        if size > max_size {
             self.error = Some(ParamError::PagingOutOfRange("cursor".to_owned()));
         } else {
             self.paging = Paging {
@@ -213,12 +213,25 @@ impl<'policy, E: SearchEntity> QueryBuilder<'policy, E> {
         }
         let projection = resolve_projection::<E>(self.projection)?;
         if let PagingMode::Cursor(Some(cursor)) = &self.paging.mode {
+            if cursor.values().len() != self.order.len() {
+                return Err(ParamError::PagingOutOfRange("cursor".to_owned()));
+            }
             for (order, value) in self.order.iter().zip(cursor.values()) {
                 if E::cursor_key_non_null(order.field) && matches!(value, crate::CursorValue::Null)
                 {
                     return Err(ParamError::InvalidValue {
                         field: "cursor".to_owned(),
                         reason: "non-null cursor key cannot contain NULL".to_owned(),
+                    });
+                }
+                if let crate::CursorValue::Scalar(scalar) = value
+                    && E::META
+                        .field(order.field)
+                        .is_none_or(|field| field.value_type != scalar.value_type())
+                {
+                    return Err(ParamError::InvalidValue {
+                        field: "cursor".to_owned(),
+                        reason: "cursor value type does not match ordering".to_owned(),
                     });
                 }
             }
@@ -376,24 +389,6 @@ impl<'policy, E: SearchEntity> QueryBuilder<'policy, E> {
                 explicit_cursor: false,
             };
         }
-    }
-
-    fn final_order_len(&self) -> usize {
-        let requested = if self.order.is_empty() {
-            E::META
-                .default_order
-                .iter()
-                .map(|item| item.field)
-                .collect()
-        } else {
-            self.order.iter().map(|item| item.field).collect::<Vec<_>>()
-        };
-        let missing_stable = E::META
-            .stable_order
-            .iter()
-            .filter(|stable| !requested.contains(&stable.field))
-            .count();
-        requested.len() + missing_stable
     }
 }
 

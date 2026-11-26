@@ -12,7 +12,6 @@ mod fingerprint;
 mod limits;
 pub(crate) mod names;
 mod validation;
-use fingerprint::{compatibility_fingerprint, policy_fingerprint};
 use limits::ensure_within_hard_limits;
 pub use limits::{QueryHardLimits, QueryLimits};
 pub use names::ParamNames;
@@ -53,8 +52,8 @@ impl Default for QueryPolicy {
     fn default() -> Self {
         let names = ParamNames::default();
         let limits = QueryLimits::default();
-        Self {
-            fingerprint: policy_fingerprint(&names, &limits),
+        let mut policy = Self {
+            fingerprint: 0,
             names,
             hard_limits: QueryHardLimits::default(),
             limits,
@@ -67,7 +66,9 @@ impl Default for QueryPolicy {
             validated_codecs: validation_cache(),
             codec_bindings: codec_binding_cache(),
             validated_operators: validation_cache(),
-        }
+        };
+        policy.recompute_fingerprint();
+        policy
     }
 }
 
@@ -89,8 +90,8 @@ impl QueryPolicy {
                 "query timeout must be greater than zero".to_owned(),
             ));
         }
-        Ok(Self {
-            fingerprint: policy_fingerprint(&names, &limits),
+        let mut policy = Self {
+            fingerprint: 0,
             names,
             limits,
             hard_limits,
@@ -103,15 +104,18 @@ impl QueryPolicy {
             validated_codecs: validation_cache(),
             codec_bindings: codec_binding_cache(),
             validated_operators: validation_cache(),
-        })
+        };
+        policy.recompute_fingerprint();
+        Ok(policy)
     }
 
     #[must_use]
     pub fn bean_searcher_4812() -> Self {
-        let mut policy = Self::default();
-        policy.compatibility = CompatibilityPolicy::BeanSearcher4812;
-        policy.fingerprint = policy_fingerprint(&policy.names, &policy.limits)
-            ^ compatibility_fingerprint(policy.compatibility);
+        let mut policy = Self {
+            compatibility: CompatibilityPolicy::BeanSearcher4812,
+            ..Self::default()
+        };
+        policy.recompute_fingerprint();
         policy
     }
 

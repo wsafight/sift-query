@@ -173,6 +173,7 @@ impl<'policy> ParamParser<'policy> {
         };
 
         let predicate = PredicateArena::combine_and([root, grouped]);
+        crate::policy::budget::validate_predicate_budget(&predicate, limits)?;
         predicate.partition()?;
         Ok(predicate)
     }
@@ -187,20 +188,13 @@ pub(crate) fn validate_order_bind_budget<E: SearchEntity>(
         .iter()
         .filter(|order| E::condition_order(order.field).is_some())
         .count();
-    if extra == 0 {
-        return Ok(());
-    }
     let binds = predicate
         .nodes()
         .iter()
         .filter_map(|node| match node {
-            crate::PredicateNode::Condition(condition) => Some(
-                if matches!(condition.operator, Operator::InList | Operator::NotIn) {
-                    1
-                } else {
-                    condition.values.len()
-                },
-            ),
+            crate::PredicateNode::Condition(condition) => {
+                Some(crate::policy::budget::condition_bind_slots(condition))
+            }
             _ => None,
         })
         .sum::<usize>();

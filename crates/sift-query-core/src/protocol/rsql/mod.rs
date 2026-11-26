@@ -20,7 +20,7 @@ pub fn parse<E: SearchEntity>(
         entries: Vec::new(),
         policy,
     };
-    let expression = parser.expression(0)?;
+    let expression = parser.expression(1)?;
     parser.space();
     if parser.position != parser.input.len() {
         return Err(invalid("unexpected trailing syntax"));

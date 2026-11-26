@@ -122,6 +122,15 @@ impl<E: SearchEntity> NumericBucketRequest<E> {
                 reason: "numeric boundaries must use one numeric value type".to_owned(),
             });
         }
+        if boundaries.iter().any(|value| {
+            matches!(value, ScalarValue::F32(v) if !v.is_finite())
+                || matches!(value, ScalarValue::F64(v) if !v.is_finite())
+        }) {
+            return Err(ParamError::InvalidValue {
+                field: "bucket.boundaries".to_owned(),
+                reason: "numeric boundaries must be finite".to_owned(),
+            });
+        }
         if boundaries
             .windows(2)
             .any(|pair| !scalar_lt(&pair[0], &pair[1]))
@@ -203,6 +212,9 @@ fn scalar_lt(left: &ScalarValue, right: &ScalarValue) -> bool {
 
 #[doc(hidden)]
 pub fn numeric_label(boundaries: &[ScalarValue], index: usize) -> String {
+    if boundaries.is_empty() {
+        return String::new();
+    }
     if index == 0 {
         format!("<{}", boundaries[0].to_external_text())
     } else if index < boundaries.len() {

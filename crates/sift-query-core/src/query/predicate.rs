@@ -406,13 +406,21 @@ impl PredicateArena {
         let mut output = Self::default();
         let mut roots = Vec::new();
         for arena in arenas {
+            let Some(root) = arena.root else {
+                if !and {
+                    return Self::default();
+                }
+                continue;
+            };
             let offset = u16::try_from(output.nodes.len()).expect("predicate budget exceeds u16");
             for node in arena.nodes {
                 output.nodes.push(remap_node(node, offset));
             }
-            if let Some(root) = arena.root {
-                roots.push(NodeId(root.0 + offset));
-            }
+            roots.push(NodeId(
+                root.0
+                    .checked_add(offset)
+                    .expect("predicate budget exceeds u16"),
+            ));
         }
         output.root = match roots.len() {
             0 => None,
@@ -556,13 +564,23 @@ fn remap_node(node: PredicateNode, offset: u16) -> PredicateNode {
         PredicateNode::And(children) => PredicateNode::And(
             children
                 .into_iter()
-                .map(|id| NodeId(id.0 + offset))
+                .map(|id| {
+                    NodeId(
+                        id.0.checked_add(offset)
+                            .expect("predicate budget exceeds u16"),
+                    )
+                })
                 .collect(),
         ),
         PredicateNode::Or(children) => PredicateNode::Or(
             children
                 .into_iter()
-                .map(|id| NodeId(id.0 + offset))
+                .map(|id| {
+                    NodeId(
+                        id.0.checked_add(offset)
+                            .expect("predicate budget exceeds u16"),
+                    )
+                })
                 .collect(),
         ),
     }

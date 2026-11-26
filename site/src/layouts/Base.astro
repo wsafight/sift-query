@@ -16,7 +16,7 @@ const chinese = new URL(Astro.url.pathname, Astro.site); chinese.searchParams.se
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#101311" />
+    <meta name="theme-color" content="#090b10" />
     <link rel="canonical" href={canonical} />
     <link rel="alternate" hreflang="en" href={english} />
     <link rel="alternate" hreflang="zh-CN" href={chinese} />
@@ -41,7 +41,10 @@ const chinese = new URL(Astro.url.pathname, Astro.site); chinese.searchParams.se
         const meta = document.querySelector('meta[name="description"]');
         if (meta && description) meta.setAttribute('content', description);
         const stored = localStorage.getItem('siftquery-theme');
-        root.dataset.theme = stored === 'light' || stored === 'dark' ? stored : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        const theme = stored === 'light' || stored === 'dark' ? stored : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        root.dataset.theme = theme;
+        const themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) themeMeta.setAttribute('content', theme === 'light' ? '#fafaf9' : '#090b10');
       })();
     </script>
   </head>

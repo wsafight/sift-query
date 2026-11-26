@@ -14,7 +14,7 @@ SiftQuery is a typed, parameter-driven, read-only query library for Rust and SQL
 
 ## Installation
 
-Version **0.2.0** is published on [crates.io](https://crates.io/crates/sift-query) (MSRV **Rust 1.99.0**, SQLx **0.9**, pre-1.0 API).
+Version **0.2.0** is published on [crates.io](https://crates.io/crates/sift-query) (MSRV **Rust 1.95.0**, SQLx **0.9**, pre-1.0 API).
 
 ```toml
 [dependencies]

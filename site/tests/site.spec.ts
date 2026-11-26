@@ -19,6 +19,13 @@ test('homepage uses the query model and three-backend content', async ({page}) =
   await expect(page.locator('.app-preview')).toBeVisible();
   await expect(page.locator('.version-pill')).toContainText('v0.2.0');
 
+  // Interactive hero pipeline demo tabs
+  await page.locator('[data-hero-demo] [data-demo-tab="scope"]').click();
+  await expect(page.locator('[data-hero-demo] [data-demo-panel="scope"]')).toBeVisible();
+  await expect(page.locator('[data-hero-demo] [data-demo-panel="filter"]')).toBeHidden();
+  await page.locator('[data-hero-demo] [data-demo-tab="cursor"]').click();
+  await expect(page.locator('[data-hero-demo] [data-demo-panel="cursor"]')).toBeVisible();
+
   // Interactive code workbench tabs
   await page.locator('[data-workbench] [data-tab="request"]').click();
   await expect(page.locator('[data-workbench] [data-panel="request"]')).toBeVisible();
@@ -113,7 +120,7 @@ test('Chinese guides and the complete reference render', async ({page}) => {
   await expect(page.getByRole('heading', {level: 1, name: '快速开始', exact: true})).toBeVisible();
   await expect(page.locator('.prose.i18n-zh')).toContainText('本例使用内存 SQLite');
   await page.goto(`${base}start/installation/?lang=zh`);
-  await expect(page.locator('.prose.i18n-zh')).toContainText('Rust 1.99.0');
+  await expect(page.locator('.prose.i18n-zh')).toContainText('Rust 1.95.0');
   await page.goto(`${base}query/protocol/?lang=zh`);
   await expect(page.locator('.prose.i18n-zh')).toContainText('查询预算');
 });

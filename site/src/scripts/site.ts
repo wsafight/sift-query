@@ -17,6 +17,7 @@ const searchIndexes = new Map<Lang, Promise<Pagefind | undefined>>();
 let pagefindModule: Promise<PagefindModule> | undefined;
 let lastScroll = window.scrollY;
 let searchRevision = 0;
+let selectedSearchIndex = -1;
 let tocObserver: IntersectionObserver | undefined;
 
 function currentLang(): Lang {
@@ -75,17 +76,8 @@ function setMenu(open: boolean) {
 function setTheme(theme: 'light' | 'dark') {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem('siftquery-theme', theme);
-}
-
-function moveIndicator(target?: HTMLElement | null) {
-  const nav = document.querySelector<HTMLElement>('.desktop-nav');
-  const indicator = document.querySelector<HTMLElement>('.nav-indicator');
-  if (!nav || !indicator || !target) { indicator?.style.setProperty('opacity', '0'); return; }
-  const navBox = nav.getBoundingClientRect();
-  const box = target.getBoundingClientRect();
-  indicator.style.width = `${box.width}px`;
-  indicator.style.transform = `translateX(${box.left - navBox.left}px)`;
-  indicator.style.opacity = '1';
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.setAttribute('content', theme === 'light' ? '#fafaf9' : '#090b10');
 }
 
 async function loadPagefind(lang = currentLang()): Promise<Pagefind | undefined> {
@@ -113,9 +105,22 @@ async function loadPagefind(lang = currentLang()): Promise<Pagefind | undefined>
   return result;
 }
 
+function updateSearchSelection(index: number) {
+  if (!results) return;
+  const links = Array.from(results.querySelectorAll<HTMLAnchorElement>('a'));
+  if (!links.length) { selectedSearchIndex = -1; return; }
+  selectedSearchIndex = ((index % links.length) + links.length) % links.length;
+  links.forEach((link, i) => {
+    const active = i === selectedSearchIndex;
+    link.classList.toggle('is-selected', active);
+    if (active) link.scrollIntoView({block: 'nearest'});
+  });
+}
+
 function renderItems(items: SearchItem[]) {
   if (!results || !empty) return;
   results.replaceChildren();
+  selectedSearchIndex = -1;
   empty.hidden = items.length > 0 || !searchInput?.value.trim();
   for (const item of items.slice(0, 8)) {
     const link = document.createElement('a');
@@ -130,6 +135,7 @@ function renderItems(items: SearchItem[]) {
     link.append(title, excerpt);
     results.append(link);
   }
+  if (items.length) updateSearchSelection(0);
 }
 
 async function search(query: string) {
@@ -164,16 +170,12 @@ async function search(query: string) {
   }
 }
 
-header?.querySelectorAll('.desktop-nav a').forEach(link => link.addEventListener('mouseenter', () => moveIndicator(link as HTMLElement)));
-header?.querySelector('.desktop-nav')?.addEventListener('mouseleave', () => moveIndicator(header.querySelector('.desktop-nav a[aria-current="page"]') as HTMLElement | null));
-moveIndicator(header?.querySelector('.desktop-nav a[aria-current="page"]') as HTMLElement | null);
-
 window.addEventListener('scroll', () => {
   if (!header) return;
   const current = window.scrollY;
   const reading = document.body.classList.contains('docs-body');
   header.classList.toggle('is-scrolled', current > 16);
-  header.classList.toggle('is-hidden', !reading && current > lastScroll && current > 90 && !document.body.classList.contains('menu-open'));
+  header.classList.toggle('is-hidden', !reading && current > lastScroll && current > 120 && !document.body.classList.contains('menu-open'));
   lastScroll = current;
 }, {passive: true});
 
@@ -184,9 +186,11 @@ document.querySelectorAll<HTMLButtonElement>('[data-lang-toggle]').forEach(butto
 applyLang(currentLang(), false);
 
 document.querySelectorAll<HTMLButtonElement>('[data-search-open]').forEach(button => button.addEventListener('click', () => {
-  dialog?.showModal(); searchInput?.focus();
+  dialog?.showModal();
+  searchInput?.focus();
   void loadPagefind();
 }));
+
 document.addEventListener('keydown', event => {
   if ((event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)) {
     event.preventDefault();
@@ -194,25 +198,32 @@ document.addEventListener('keydown', event => {
     return;
   }
   if (event.key === '/' && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
-    event.preventDefault(); document.querySelector<HTMLButtonElement>('[data-search-open]')?.click();
+    event.preventDefault();
+    document.querySelector<HTMLButtonElement>('[data-search-open]')?.click();
   }
   if (event.key === 'Escape') {
     if (dialog?.open) { event.preventDefault(); dialog.close(); }
     setMenu(false);
   }
 }, {capture: true});
-searchInput?.addEventListener('input', () => void search(searchInput.value));
-dialog?.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 
-document.querySelectorAll<HTMLElement>('.capability-panel').forEach(panel => {
-  const activate = () => {
-    document.querySelectorAll('.capability-panel.is-active').forEach(item => item.classList.remove('is-active'));
-    panel.classList.add('is-active');
-  };
-  panel.addEventListener('mouseenter', activate);
-  panel.addEventListener('focusin', activate);
-  panel.querySelector('button')?.addEventListener('click', activate);
+searchInput?.addEventListener('input', () => void search(searchInput.value));
+searchInput?.addEventListener('keydown', event => {
+  if (!results) return;
+  const links = results.querySelectorAll<HTMLAnchorElement>('a');
+  if (!links.length) return;
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    updateSearchSelection(selectedSearchIndex + 1);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    updateSearchSelection(selectedSearchIndex - 1);
+  } else if (event.key === 'Enter' && selectedSearchIndex >= 0 && links[selectedSearchIndex]) {
+    event.preventDefault();
+    links[selectedSearchIndex].click();
+  }
 });
+dialog?.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 
 document.querySelectorAll<HTMLElement>('.prose pre').forEach(block => {
   if (block.querySelector('.copy-code')) return;
@@ -254,86 +265,88 @@ syncDocPanels();
 window.matchMedia('(max-width: 780px)').addEventListener('change', syncDocPanels);
 window.matchMedia('(max-width: 1080px)').addEventListener('change', syncDocPanels);
 
-const currentDoc = document.querySelector<HTMLAnchorElement>('.docs-sidebar a[aria-current="page"]');
-const sidebar = currentDoc?.closest('.docs-sidebar');
-if (currentDoc && sidebar instanceof HTMLElement) {
-  const linkBox = currentDoc.getBoundingClientRect();
-  const sideBox = sidebar.getBoundingClientRect();
-  sidebar.scrollTop += linkBox.top - sideBox.top - sideBox.height / 3;
-}
-
-document.querySelectorAll('.docs-outline a').forEach(link => {
+document.querySelectorAll<HTMLAnchorElement>('.docs-toc a').forEach(link => {
   link.addEventListener('click', () => {
-    const details = link.closest('details');
-    if (details && window.matchMedia('(max-width: 1080px)').matches) details.open = false;
+    if (window.matchMedia('(max-width: 1080px)').matches) {
+      const outline = link.closest<HTMLDetailsElement>('.docs-outline');
+      if (outline) outline.open = false;
+    }
   });
 });
 
 function watchToc() {
   tocObserver?.disconnect();
-  const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>(`.docs-toc.i18n-${currentLang()} a`)];
-  const headings = tocLinks.map(link => document.getElementById(decodeURIComponent(link.hash.slice(1)))).filter((node): node is HTMLElement => node instanceof HTMLElement);
-  if (!tocLinks.length || !headings.length) return;
+  const lang = currentLang();
+  const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(`.docs-toc.i18n-${lang} a`));
+  if (!tocLinks.length) return;
+  const pairs = tocLinks.map(link => {
+    const id = decodeURIComponent(link.getAttribute('href')?.slice(1) || '');
+    return {link, target: document.getElementById(id)};
+  }).filter((item): item is {link: HTMLAnchorElement; target: HTMLElement} => Boolean(item.target));
+  if (!pairs.length) return;
+  const mark = (active: HTMLAnchorElement) => {
+    tocLinks.forEach(link => link.classList.toggle('is-active', link === active));
+  };
+  mark(pairs[0].link);
   tocObserver = new IntersectionObserver(entries => {
-    const visible = entries.filter(entry => entry.isIntersecting).at(-1);
-    if (!visible?.target.id) return;
-    tocLinks.forEach(link => link.classList.toggle('is-active', decodeURIComponent(link.hash) === `#${visible.target.id}`));
-  }, {rootMargin: '-20% 0px -70% 0px', threshold: 0.1});
-  headings.forEach(heading => tocObserver?.observe(heading));
+    const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    const hit = visible[0] && pairs.find(item => item.target === visible[0].target);
+    if (hit) mark(hit.link);
+  }, {rootMargin: '-96px 0px -70% 0px'});
+  pairs.forEach(item => tocObserver?.observe(item.target));
 }
 watchToc();
 
-document.querySelectorAll<HTMLElement>('[data-workbench]').forEach(workbench => {
-  const tabs = [...workbench.querySelectorAll<HTMLButtonElement>('[data-tab]')];
-  const panels = [...workbench.querySelectorAll<HTMLElement>('[data-panel]')];
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.dataset.tab;
-      tabs.forEach(item => {
-        const active = item === tab;
-        item.classList.toggle('is-current', active);
-        item.setAttribute('aria-selected', String(active));
-      });
-      panels.forEach(panel => {
-        panel.hidden = panel.dataset.panel !== target;
-      });
-    });
-  });
-});
-
-document.querySelectorAll<HTMLElement>('[data-preview]').forEach(preview => {
-  const tabs = [...preview.querySelectorAll<HTMLButtonElement>('[data-preview-tab]')];
-  const views = [...preview.querySelectorAll<HTMLElement>('[data-preview-view]')];
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.dataset.previewTab;
-      tabs.forEach(item => item.classList.toggle('active', item === tab));
-      views.forEach(view => {
-        view.hidden = view.dataset.previewView !== target;
-      });
-    });
-  });
-});
-
-document.querySelectorAll<HTMLButtonElement>('.copy-inline').forEach(button => {
-  button.addEventListener('click', async () => {
-    const text = button.dataset.copyText || '';
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    const original = button.innerHTML;
-    button.textContent = copy().copied;
-    window.setTimeout(() => { button.innerHTML = original; }, 1600);
-  });
-});
-
-const progress = document.querySelector<HTMLElement>('#reading-progress');
-if (progress) {
+// Reading progress indicator on documentation pages
+const progressBar = document.querySelector<HTMLElement>('#reading-progress');
+if (progressBar) {
   const updateProgress = () => {
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    const ratio = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
-    progress.style.transform = `scaleX(${ratio})`;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const ratio = docHeight > 0 ? Math.min(1, Math.max(0, window.scrollY / docHeight)) : 0;
+    progressBar.style.transform = `scaleX(${ratio})`;
   };
   updateProgress();
   window.addEventListener('scroll', updateProgress, {passive: true});
   window.addEventListener('resize', updateProgress, {passive: true});
 }
+
+// Generic tab switcher helper
+function wireTabs(rootSelector: string, tabAttr: string, panelAttr: string, activeClass: string) {
+  document.querySelectorAll<HTMLElement>(rootSelector).forEach(root => {
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(`[${tabAttr}]`));
+    const panels = Array.from(root.querySelectorAll<HTMLElement>(`[${panelAttr}]`));
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const key = tab.getAttribute(tabAttr);
+        tabs.forEach(item => {
+          const active = item === tab;
+          item.classList.toggle(activeClass, active);
+          item.setAttribute('aria-selected', String(active));
+        });
+        panels.forEach(panel => {
+          panel.hidden = panel.getAttribute(panelAttr) !== key;
+        });
+      });
+    });
+  });
+}
+
+wireTabs('[data-hero-demo]', 'data-demo-tab', 'data-demo-panel', 'is-active');
+wireTabs('[data-workbench]', 'data-tab', 'data-panel', 'is-current');
+wireTabs('[data-preview]', 'data-preview-tab', 'data-preview-view', 'active');
+
+// Inline copy buttons (install bar & workbench)
+document.querySelectorAll<HTMLButtonElement>('[data-copy-text]').forEach(button => {
+  button.addEventListener('click', async () => {
+    const text = button.dataset.copyText;
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    const original = button.innerHTML;
+    button.dataset.copied = 'true';
+    button.textContent = copy().copied;
+    window.setTimeout(() => {
+      delete button.dataset.copied;
+      button.innerHTML = original;
+    }, 1600);
+  });
+});

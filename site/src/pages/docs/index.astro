@@ -1,4 +1,5 @@
 ---
+import ArrowRight from '@lucide/astro/icons/arrow-right';
 import {getCollection} from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import DocSidebar from '../../components/DocSidebar.astro';
@@ -18,19 +19,29 @@ for (const page of pages) {
       <DocSidebar />
     </div>
     <article class="docs-main">
-      <p class="docs-kicker">SiftQuery / <T en="Documentation" zh="文档" /></p>
-      <h1><T en="From your first query to production" zh="从第一个查询，到生产接入" /></h1>
-      <p class="docs-lead"><T en="Start with a runnable example, then explore query semantics, backend capabilities and production contracts. English reference pages are concise guides; Chinese pages include the full specifications." zh="先运行一个查询，再按主题阅读查询语义、数据库能力和生产合同。中文收录完整规范，英文提供对应的精简指南。" /></p>
+      <div class="docs-hero">
+        <p class="docs-kicker">SiftQuery / <T en="Documentation" zh="文档" /></p>
+        <h1><T en="From your first query to production" zh="从第一个查询，到生产接入" /></h1>
+        <p class="docs-lead"><T en="Start with a runnable example, then explore query semantics, backend capabilities and production contracts. English reference pages are concise guides; Chinese pages include the full specifications." zh="先运行一个查询，再按主题阅读查询语义、数据库能力和生产合同。中文收录完整规范，英文提供对应的精简指南。" /></p>
+      </div>
       <div class="docs-index">
         {groupedPages.map(group => (
-          <section>
-            <h2>{group.number} / <T en={group.label.en} zh={group.label.zh} /></h2>
-            {group.pages.map(page => (
-              <a href={href(page.slug)}>
-                <strong><T en={page.title.en} zh={page.title.zh} /></strong>
-                <p><T en={page.description.en} zh={page.description.zh} /></p>
-              </a>
-            ))}
+          <section class="docs-index-section">
+            <div class="docs-index-head">
+              <span class="docs-index-num">{group.number}</span>
+              <h2><T en={group.label.en} zh={group.label.zh} /></h2>
+            </div>
+            <div class="docs-index-cards">
+              {group.pages.map(page => (
+                <a class="docs-index-card" href={href(page.slug)}>
+                  <div class="docs-index-card-top">
+                    <strong><T en={page.title.en} zh={page.title.zh} /></strong>
+                    <ArrowRight size={14} class="docs-index-arrow" aria-hidden="true" />
+                  </div>
+                  <p><T en={page.description.en} zh={page.description.zh} /></p>
+                </a>
+              ))}
+            </div>
           </section>
         ))}
       </div>

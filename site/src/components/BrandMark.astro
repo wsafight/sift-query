@@ -1,7 +1,8 @@
 ---
 const {size = 24} = Astro.props;
 ---
-<svg class="brand-mark" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M8 4H4v16h4M16 4h4v16h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="square" />
-  <rect x="10" y="10" width="4" height="4" fill="currentColor" />
+<svg class="brand-mark" width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
+  <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--brand-mark-bg)" stroke="var(--brand-mark-border)" stroke-width="1.2" />
+  <path d="M7.5 8.5h13l-4.8 6.1v5.6l-3.4-1.4v-4.2L7.5 8.5Z" fill="var(--accent)" />
+  <circle cx="20.2" cy="20.2" r="2.1" fill="var(--ok)" />
 </svg>

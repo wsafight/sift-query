@@ -1,4 +1,7 @@
 ---
+import ArrowLeft from '@lucide/astro/icons/arrow-left';
+import ArrowRight from '@lucide/astro/icons/arrow-right';
+import FileText from '@lucide/astro/icons/file-text';
 import {getCollection, render, type CollectionEntry} from 'astro:content';
 import Base from '../layouts/Base.astro';
 import DocSidebar from '../components/DocSidebar.astro';
@@ -45,16 +48,30 @@ const hasToc = outline(headingsEn).length > 0 || outline(headingsZh).length > 0;
       )}
     </div>
     <article class="docs-main" data-pagefind-body data-pagefind-meta={`title:${page.title.en}`}>
-      <p class="docs-kicker">{group?.number} / {group && <T en={group.label.en} zh={group.label.zh} />}</p>
-      <h1><T en={page.title.en} zh={page.title.zh} /></h1>
-      <p class="docs-lead"><T en={page.description.en} zh={page.description.zh} /></p>
-      <a class="docs-source i18n-en" href={sourceHrefEn}>View source · {page.source}</a>
-      <a class="docs-source i18n-zh" href={sourceHrefZh}>查看原文 · {page.translation || page.source}</a>
+      <header class="docs-article-header">
+        <p class="docs-kicker">{group?.number} / {group && <T en={group.label.en} zh={group.label.zh} />}</p>
+        <h1><T en={page.title.en} zh={page.title.zh} /></h1>
+        <p class="docs-lead"><T en={page.description.en} zh={page.description.zh} /></p>
+        <div class="docs-meta-row">
+          <a class="docs-source i18n-en" href={sourceHrefEn}><FileText size={13} aria-hidden="true" /> View source · {page.source}</a>
+          <a class="docs-source i18n-zh" href={sourceHrefZh}><FileText size={13} aria-hidden="true" /> 查看原文 · {page.translation || page.source}</a>
+        </div>
+      </header>
       <div class="prose i18n-en"><ContentEn /></div>
       <div class="prose i18n-zh"><ContentZh /></div>
       <nav class="docs-pager" aria-label="Adjacent pages" data-i18n-aria="pager">
-        {previous ? <a href={href(previous.slug)}><span><T en="Previous" zh="上一篇" /></span><strong><T en={previous.title.en} zh={previous.title.zh} /></strong></a> : <span></span>}
-        {next ? <a href={href(next.slug)}><span><T en="Next" zh="下一篇" /></span><strong><T en={next.title.en} zh={next.title.zh} /></strong></a> : <span></span>}
+        {previous ? (
+          <a class="pager-card pager-prev" href={href(previous.slug)}>
+            <span class="pager-dir"><ArrowLeft size={13} aria-hidden="true" /> <T en="Previous" zh="上一篇" /></span>
+            <strong><T en={previous.title.en} zh={previous.title.zh} /></strong>
+          </a>
+        ) : <span class="pager-spacer"></span>}
+        {next ? (
+          <a class="pager-card pager-next" href={href(next.slug)}>
+            <span class="pager-dir"><T en="Next" zh="下一篇" /> <ArrowRight size={13} aria-hidden="true" /></span>
+            <strong><T en={next.title.en} zh={next.title.zh} /></strong>
+          </a>
+        ) : <span class="pager-spacer"></span>}
       </nav>
     </article>
   </main>

@@ -1,6 +1,6 @@
 # 安装
 
-[SiftQuery 0.2.0](https://crates.io/crates/sift-query) 已发布到 crates.io。需要 **Rust 1.99.0 或更新版本**，SQLx 集成使用 **0.9**。
+[SiftQuery 0.2.0](https://crates.io/crates/sift-query) 已发布到 crates.io。需要 **Rust 1.95.0 或更新版本**，SQLx 集成使用 **0.9**。
 
 ## 安装 SQLite 配置
 

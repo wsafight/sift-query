@@ -24,39 +24,41 @@ const nav = [
 ];
 ---
 <a class="skip-link" href="#main-content"><T en={ui.en.skip} zh={ui.zh.skip} /></a>
-<header class="site-header" id="site-header" data-header-theme={home ? 'dark' : undefined}>
+<header class="site-header" id="site-header">
   {!home && <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>}
   <div class="site-header-inner">
     <div class="brand-group">
       <a class="brand-link" href={homeHref} aria-label={ui.en.home} data-i18n-aria="home">
-        <BrandMark />
+        <BrandMark size={28} />
         <span class="brand-name">SiftQuery</span>
       </a>
       <a class="version-pill" href={changelogHref} title="Changelog">v{siteVersion}</a>
     </div>
     <nav class="desktop-nav" aria-label={ui.en.primaryNav} data-i18n-aria="primaryNav">
       {nav.map(item => (
-        <a href={item.href} aria-current={item.current ? 'page' : undefined} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}><T en={item.en} zh={item.zh} /></a>
+        <a href={item.href} aria-current={item.current ? 'page' : undefined} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>
+          <T en={item.en} zh={item.zh} />
+        </a>
       ))}
-      <span class="nav-indicator" aria-hidden="true"></span>
     </nav>
     <div class="header-actions">
       <button class="icon-button search-trigger" type="button" data-search-open aria-haspopup="dialog" aria-controls="search-dialog" aria-label={ui.en.search} data-i18n-aria="search">
-        <Search size={17} stroke-width={1.75} />
+        <Search size={15} stroke-width={2} />
+        <span class="search-trigger-label" aria-hidden="true"><T en="Search..." zh="搜索..." /></span>
         <kbd class="search-kbd" aria-hidden="true">/</kbd>
       </button>
       <button class="icon-button" type="button" data-theme-toggle aria-label={ui.en.theme} data-i18n-aria="theme">
-        <Sun class="icon-sun" size={17} stroke-width={1.75} />
-        <Moon class="icon-moon" size={17} stroke-width={1.75} />
+        <Sun class="icon-sun" size={16} stroke-width={1.9} />
+        <Moon class="icon-moon" size={16} stroke-width={1.9} />
       </button>
       <button class="language-toggle" type="button" data-lang-toggle aria-label={ui.en.lang} data-i18n-aria="lang">
         <span class="lang-opt lang-opt-en">EN</span>
         <span class="lang-sep" aria-hidden="true">/</span>
         <span class="lang-opt lang-opt-zh">中文</span>
       </button>
-      <BracketLink class="bracket-link-small" href={startHref}><T en={ui.en.quickStart} zh={ui.zh.quickStart} /></BracketLink>
+      <BracketLink class="btn-sm header-cta" href={startHref}><T en={ui.en.quickStart} zh={ui.zh.quickStart} /></BracketLink>
       <button class="menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label={ui.en.menuOpen} data-i18n-aria="menuOpen">
-        <span></span><span></span><span></span><span></span>
+        <span></span><span></span>
       </button>
     </div>
   </div>
@@ -64,7 +66,9 @@ const nav = [
 <div class="mobile-menu" id="mobile-menu" aria-hidden="true" inert>
   <nav aria-label={ui.en.mobileNav} data-i18n-aria="mobileNav">
     {nav.map(item => (
-      <a href={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}><T en={item.en} zh={item.zh} /></a>
+      <a href={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>
+        <T en={item.en} zh={item.zh} />
+      </a>
     ))}
     <a href={startHref}><T en={ui.en.quickStart} zh={ui.zh.quickStart} /></a>
   </nav>

@@ -1,6 +1,6 @@
 # Installation
 
-SiftQuery 0.2.0 is published on [crates.io](https://crates.io/crates/sift-query). Use Rust **1.99.0 or newer**. The SQLx integration uses **0.9**.
+SiftQuery 0.2.0 is published on [crates.io](https://crates.io/crates/sift-query). Use Rust **1.95.0 or newer**. The SQLx integration uses **0.9**.
 
 ## Install for SQLite
 

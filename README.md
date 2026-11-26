@@ -1,18 +1,20 @@
+English | [简体中文](README.zh-CN.md)
+
 # SiftQuery
 
-SiftQuery 是 Rust/sqlx 的类型化只读查询库。应用声明允许查询的字段、运算符和服务端 Scope，库负责参数解析、计划、参数化 SQL、分页和查询预算。
+SiftQuery is a typed, parameter-driven, read-only query library for Rust and SQLx. Your application declares allowed fields, operators, projections, and server-owned scopes; SiftQuery validates request parameters, enforces query budgets, and renders parameterized SQL across PostgreSQL, MySQL/MariaDB, and SQLite.
 
-PostgreSQL 后端还提供三项面向生产的能力：`validate_schema::<E>()` 用 `EXPLAIN` 做启动/CI schema 合同校验；`ScopeProvider` 与 `search_authorized` 等入口把认证上下文转换为服务端权限范围；`FacetRequest`、`facets` 和 `search_map_with_facets` 提供受限、复用同一过滤与 Scope 的聚合桶。Facet 只接受实体声明的字段，不接受客户端 SQL。
+## Why SiftQuery
 
-当前版本还提供一组面向业务查询的增强：字段级访问策略、无 COUNT 的 keyset cursor 分页、服务端声明的 `EXISTS/NOT EXISTS`、Facet 与 DISTINCT 语义、metadata 驱动的 TypeScript `QueryBuilder`、PostgreSQL schema 结果类型校验、`EXPLAIN (FORMAT JSON)` 查询诊断与保守索引建议，以及时间/数值分桶。诊断只返回参数化 SQL、执行计划和建议，不自动创建或修改索引；所有能力继续复用实体元数据、`ServerScope` 和既有查询预算。
+- **Declared boundaries**: Derive `SearchEntity` to define fields, operator whitelists, projections, and stable ordering. Invalid parameters are rejected before touching the database.
+- **Server-owned authorization**: Supply `ServerScope` (or implement `ScopeProvider`) from trusted identity and authorization context. Client filters never bypass server scopes or inject raw SQL, table names, or column names.
+- **Three isolated database backends**: PostgreSQL, MySQL/MariaDB, and SQLite live in separate crates and Cargo features. `sift-query-core` does not depend on `sqlx`, and choosing one backend does not pull in other database drivers.
+- **Production query pipeline**: Typed rows and dynamic maps, `SUM`/`AVG`/`MIN`/`MAX` summaries, signed keyset cursors (with or without `COUNT`), bounded scans and CSV exports, field access policies, server-declared `EXISTS`/`NOT EXISTS`, facets, time/numeric buckets, web extractors (`axum`, `actix-web`, `poem`), codecs, label enrichment, observers, and a bounded SQL template cache that always rebinds current values.
+- **Optional PostgreSQL capabilities**: Opt-in full-text search, JSONB, native array/range/network types, `pg_trgm`, `ltree`, PostGIS, `validate_schema::<E>()` via `EXPLAIN`, query diagnostics, safe metadata/OpenAPI fragments, bounded RSQL, and transaction-local RLS.
 
-当前 PostgreSQL 执行后端包含组合筛选、聚合、签名 cursor、scan/CSV、Codec、Web adapter、Label、观测及完整 RPC；MySQL/MariaDB 与 SQLite 先提供独立的核心查询执行路径。普通 query 不要求事务；SQL 模板缓存不缓存结果。
+## Installation
 
-可选能力已包含全文/JSONB、原生 array/range/network、pg_trgm/ltree/PostGIS、安全 metadata/OpenAPI、RSQL 子集及 RLS 请求上下文。各能力独立 feature，默认关闭；接入与索引合同见 [PostgreSQL 能力](docs/12-POSTGRES-CAPABILITIES.md) 和 [生态接入](docs/13-ECOSYSTEM.md)。
-
-数据库后端按独立 crate/feature 隔离：公共 core 不依赖 sqlx；选择 PostgreSQL、MySQL/MariaDB 或 SQLite 时只引入对应驱动，不作为 PostgreSQL 执行路径的运行时分支。
-
-安装：
+Version **0.2.0** is published on [crates.io](https://crates.io/crates/sift-query) (MSRV **Rust 1.99.0**, SQLx **0.9**, pre-1.0 API).
 
 ```toml
 [dependencies]
@@ -20,8 +22,35 @@ sift-query = { version = "0.2.0", default-features = false, features = ["postgre
 sqlx = { version = "0.9", default-features = false, features = ["postgres", "runtime-tokio", "macros"] }
 ```
 
-0.2.0 已发布到 [crates.io](https://crates.io/crates/sift-query)，源码见 [GitHub](https://github.com/wsafight/sift-query)。最低 Rust 版本为 1.99.0；当前 API 为 pre-1.0。
+Disable default features and replace `postgres` with `mysql` or `sqlite` to select another backend. Integration features (`axum`, `actix-web`, `poem`, `chrono`, `decimal`, `json`, `serde`, `uuid`) automatically apply to any enabled backend.
 
-从[安装](docs/guides/zh/installation.md)、[快速开始](docs/guides/zh/quick-start.md)和[数据库选择](docs/guides/zh/backend-selection.md)开始。项目已添加基于 app-struct UI 的中英文文档站点，本地运行及 GitHub Pages 部署见 [site/README.md](site/README.md)。
+## Quick Example
 
-参见 [文档索引](docs/README.md)、[实现状态](docs/06-STATUS.md)、[变更记录](CHANGELOG.md) 和 [发布指南](docs/11-RELEASE-AND-BACKENDS.md)。Apache-2.0 许可证见 [LICENSE](LICENSE)。
+```rust
+use sift_query::{RawParams, SearchEntity, ServerScope, SqliteSiftQuery};
+
+#[derive(Debug, sqlx::FromRow, SearchEntity)]
+#[search_entity(from = "users", default_order = "id:asc", stable_order = "id:asc")]
+struct User {
+    #[search_field(sortable, cursor_non_null, operators = [Eq, InList])]
+    id: i64,
+    #[search_field(operators = [Eq, StartWith])]
+    name: String,
+}
+
+// Parse URL params: name=A&name-op=sw&size=10
+let raw = RawParams::parse("name=A&name-op=sw&size=10")?;
+let query = search.parse::<User>(&raw)?;
+let page = search.search(&query, &ServerScope::unrestricted()).await?;
+```
+
+## Documentation
+
+- **Documentation site (EN / 中文)**: See [site/README.md](site/README.md) for local preview and GitHub Pages deployment.
+- **Getting started**: [Overview](docs/guides/en/overview.md) · [Installation](docs/guides/en/installation.md) · [Quick start](docs/guides/en/quick-start.md) · [Choose a backend](docs/guides/en/backend-selection.md)
+- **Reference**: [API docs on docs.rs](https://docs.rs/sift-query) · [Rust API Guide](docs/guides/en/api.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+- **中文文档**: [README.zh-CN.md](README.zh-CN.md) · [文档索引](docs/README.md)
+
+## License
+
+Licensed under the [Apache-2.0](LICENSE) license.

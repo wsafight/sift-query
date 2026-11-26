@@ -188,6 +188,11 @@ document.querySelectorAll<HTMLButtonElement>('[data-search-open]').forEach(butto
   void loadPagefind();
 }));
 document.addEventListener('keydown', event => {
+  if ((event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault();
+    document.querySelector<HTMLButtonElement>('[data-search-open]')?.click();
+    return;
+  }
   if (event.key === '/' && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
     event.preventDefault(); document.querySelector<HTMLButtonElement>('[data-search-open]')?.click();
   }
@@ -277,3 +282,58 @@ function watchToc() {
   headings.forEach(heading => tocObserver?.observe(heading));
 }
 watchToc();
+
+document.querySelectorAll<HTMLElement>('[data-workbench]').forEach(workbench => {
+  const tabs = [...workbench.querySelectorAll<HTMLButtonElement>('[data-tab]')];
+  const panels = [...workbench.querySelectorAll<HTMLElement>('[data-panel]')];
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      tabs.forEach(item => {
+        const active = item === tab;
+        item.classList.toggle('is-current', active);
+        item.setAttribute('aria-selected', String(active));
+      });
+      panels.forEach(panel => {
+        panel.hidden = panel.dataset.panel !== target;
+      });
+    });
+  });
+});
+
+document.querySelectorAll<HTMLElement>('[data-preview]').forEach(preview => {
+  const tabs = [...preview.querySelectorAll<HTMLButtonElement>('[data-preview-tab]')];
+  const views = [...preview.querySelectorAll<HTMLElement>('[data-preview-view]')];
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.previewTab;
+      tabs.forEach(item => item.classList.toggle('active', item === tab));
+      views.forEach(view => {
+        view.hidden = view.dataset.previewView !== target;
+      });
+    });
+  });
+});
+
+document.querySelectorAll<HTMLButtonElement>('.copy-inline').forEach(button => {
+  button.addEventListener('click', async () => {
+    const text = button.dataset.copyText || '';
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    const original = button.innerHTML;
+    button.textContent = copy().copied;
+    window.setTimeout(() => { button.innerHTML = original; }, 1600);
+  });
+});
+
+const progress = document.querySelector<HTMLElement>('#reading-progress');
+if (progress) {
+  const updateProgress = () => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const ratio = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    progress.style.transform = `scaleX(${ratio})`;
+  };
+  updateProgress();
+  window.addEventListener('scroll', updateProgress, {passive: true});
+  window.addEventListener('resize', updateProgress, {passive: true});
+}

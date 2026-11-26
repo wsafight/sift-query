@@ -1,6 +1,6 @@
 # 安装
 
-[SiftQuery 0.1.0](https://crates.io/crates/sift-query) 已发布到 crates.io。需要 **Rust 1.99.0 或更新版本**，SQLx 集成使用 **0.9**。
+[SiftQuery 0.2.0](https://crates.io/crates/sift-query) 已发布到 crates.io。需要 **Rust 1.99.0 或更新版本**，SQLx 集成使用 **0.9**。
 
 ## 安装 SQLite 配置
 
@@ -8,7 +8,7 @@
 
 ```toml
 [dependencies]
-sift-query = { version = "0.1.0", default-features = false, features = ["sqlite", "serde"] }
+sift-query = { version = "0.2.0", default-features = false, features = ["sqlite", "serde"] }
 sqlx = { version = "0.9", default-features = false, features = ["sqlite", "runtime-tokio", "macros"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
@@ -27,16 +27,15 @@ MySQL/MariaDB：把两处 `sqlite` 都换成 `mysql`，执行器使用 `MySqlSif
 
 | Feature | 用途 |
 | --- | --- |
-| `serde` | 序列化支持 |
-| `chrono`、`json`、`uuid` | 可选值类型，具体支持取决于后端 |
+| `serde` | 跨已启用后端的序列化支持 |
+| `chrono`、`json`、`uuid` | 可选值类型，自动透传到已启用的后端 |
 | `decimal` | PostgreSQL 与 MySQL 的 Decimal 支持 |
-| `axum`、`actix-web`、`poem` | PostgreSQL Web 集成 |
-| `mysql-axum`、`sqlite-axum` | 对应后端的 Axum 集成 |
+| `axum`、`actix-web`、`poem` | Web 提取器与错误适配，自动作用于已启用的任意后端 |
 | `metadata`、`rsql` | 查询元数据与有预算的 RSQL 解析 |
 | `postgres-search`、`postgres-types` | PostgreSQL 原生搜索和值类型 |
 | `pg-trgm`、`ltree`、`postgis`、`rls` | PostgreSQL 可选扩展与 RLS 上下文 |
 
-其他框架可使用 `mysql-actix-web`、`sqlite-actix-web`、`mysql-poem`、`sqlite-poem`。选择原生功能前先阅读[后端指南](backend-selection.md)。
+从 0.2.0 起，`axum`、`actix-web`、`poem` 以及各值类型 feature 会自动作用于已启用的数据库后端，不再需要 `sqlite-axum` 等带后端前缀的组合 feature。选择原生功能前先阅读[后端指南](backend-selection.md)。
 
 ## API 文档
 

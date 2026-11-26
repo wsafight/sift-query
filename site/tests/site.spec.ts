@@ -17,6 +17,21 @@ test('homepage uses the query model and three-backend content', async ({page}) =
   await expect(page.locator('#compiler')).toContainText('Describe the boundary');
   await expect(page.locator('#runtime')).toContainText('Useful for the first list');
   await expect(page.locator('.app-preview')).toBeVisible();
+  await expect(page.locator('.version-pill')).toContainText('v0.2.0');
+
+  // Interactive code workbench tabs
+  await page.locator('[data-workbench] [data-tab="request"]').click();
+  await expect(page.locator('[data-workbench] [data-panel="request"]')).toBeVisible();
+  await expect(page.locator('[data-workbench] [data-panel="entity"]')).toBeHidden();
+  await page.locator('[data-workbench] [data-tab="sql"]').click();
+  await expect(page.locator('[data-workbench] [data-panel="sql"]')).toBeVisible();
+
+  // Interactive runtime preview tabs
+  await page.locator('[data-preview] [data-preview-tab="scope"]').click();
+  await expect(page.locator('[data-preview] [data-preview-view="scope"]')).toBeVisible();
+  await expect(page.locator('[data-preview] [data-preview-view="rows"]')).toBeHidden();
+  await page.locator('[data-preview] [data-preview-tab="cursor"]').click();
+  await expect(page.locator('[data-preview] [data-preview-view="cursor"]')).toBeVisible();
 });
 
 test('navigation opens the documentation catalog', async ({page}, info) => {

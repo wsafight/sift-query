@@ -66,10 +66,21 @@
 .spec-layout { display: grid; grid-template-columns: 0.8fr 1.2fr; align-items: start; gap: 74px; }
 .spec-section .eyebrow { color: #f0eee87f; }
 .code-workbench { min-width: 0; border: 1px solid var(--line-dark); background: #0c0f0d; }
-.workbench-tabs { display: flex; min-height: 42px; align-items: flex-end; gap: 4px; border-bottom: 1px solid var(--line-dark); color: #f0eee861; font-family: var(--font-mono); font-size: 10px; }
-.workbench-tabs span { display: flex; align-items: center; min-height: 41px; padding-inline: 15px; }
-.workbench-tabs .is-current { border-bottom: 1px solid var(--green); color: var(--paper); }
-.code-workbench pre { min-height: 366px; margin: 0; overflow: auto; padding: 24px; color: #d9ddd8; font-family: var(--font-mono); font-size: 13px; line-height: 1.72; }
+.workbench-tabs { display: flex; min-height: 42px; align-items: flex-end; gap: 4px; border-bottom: 1px solid var(--line-dark); color: #f0eee861; font-family: var(--font-mono); font-size: 10px; overflow-x: auto; }
+.workbench-tab {
+  display: flex;
+  align-items: center;
+  min-height: 41px;
+  padding-inline: 15px;
+  border-bottom: 2px solid transparent;
+  color: inherit;
+  white-space: nowrap;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.workbench-tab:hover { color: #f0eee8c4; background: #ffffff08; }
+.workbench-tab.is-current { border-bottom-color: var(--green); color: var(--paper); }
+.workbench-panel[hidden] { display: none; }
+.code-workbench pre { min-height: 366px; margin: 0; overflow: auto; padding: 24px; background: transparent !important; color: #d9ddd8; font-family: var(--font-mono); font-size: 13px; line-height: 1.72; }
 .code-key { color: #82cca0; }
 .code-name { color: #efc780; }
 .code-value { color: #ee9a8a; }
@@ -93,8 +104,18 @@
 .preview-body { display: grid; grid-template-columns: 124px 1fr; height: calc(100% - 45px); }
 .preview-body aside { display: flex; flex-direction: column; gap: 2px; padding: 18px 10px; border-right: 1px solid #18201920; background: #edf0eb; }
 .preview-body aside strong { margin: 0 8px 9px; color: #18201966; font-family: var(--font-mono); font-size: 7px; }
-.preview-body aside span { padding: 7px 8px; color: #18201988; font-size: 9px; }
-.preview-body aside .active { border-left: 2px solid var(--green-deep); background: #ffffff; color: #182019; font-weight: 650; }
+.preview-body aside .preview-tab {
+  width: 100%;
+  padding: 7px 8px;
+  border-left: 2px solid transparent;
+  color: #18201988;
+  font-size: 9px;
+  text-align: left;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.preview-body aside .preview-tab:hover { background: #ffffff80; color: #182019; }
+.preview-body aside .preview-tab.active { border-left-color: var(--green-deep); background: #ffffff; color: #182019; font-weight: 650; }
+.preview-view[hidden] { display: none; }
 .preview-main { min-width: 0; padding: 22px; }
 .preview-title { display: flex; align-items: end; justify-content: space-between; }
 .preview-title div { display: flex; flex-direction: column; gap: 3px; }
@@ -144,7 +165,40 @@
 .final-cta h2 { font-size: 62px; font-weight: 580; line-height: 1.02; }
 .final-cta .bracket-link { color: var(--green); }
 .final-cta .final-layout { display: grid; grid-template-columns: 1fr 0.75fr; align-items: end; gap: 80px; }
+.final-cta .final-layout > * { min-width: 0; }
 .final-cta .final-layout p { max-width: 44ch; color: #f0eee899; font-size: 16px; line-height: 1.7; }
+.install-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-dark);
+  border-radius: 4px;
+  background: #0c0f0d;
+  max-width: 100%;
+  overflow: hidden;
+}
+.install-bar code {
+  min-width: 0;
+  overflow-x: auto;
+  color: var(--green);
+  font-size: 12px;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.copy-inline {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--line-dark);
+  border-radius: 3px;
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.copy-inline:hover { background: #ffffff14; border-color: var(--green); }
 .final-cta .final-layout .bracket-link { margin-top: 26px; }
 .final-cta .final-layout > div:last-child > span { display: block; margin-top: 20px; color: #f0eee86f; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; }
 

@@ -1,7 +1,7 @@
 ---
 import BrandMark from './BrandMark.astro';
 import T from './T.astro';
-import {href} from '../catalog';
+import {href, siteVersion} from '../catalog';
 import {githubRepo, ui} from '../i18n';
 const homeHref = href();
 ---
@@ -10,7 +10,7 @@ const homeHref = href();
     <div class="footer-brand">
       <div class="footer-signature"><BrandMark size={30} /><strong>SiftQuery</strong></div>
       <p><T en="A typed, read-only query library for Rust and SQLx." zh="Rust 与 SQLx 的类型化只读查询库。" /></p>
-      <p class="footer-legal">© 2026 SiftQuery contributors · Apache-2.0 · v0.1.0</p>
+      <p class="footer-legal">© 2026 SiftQuery contributors · Apache-2.0 · v{siteVersion}</p>
     </div>
     <nav class="footer-nav" aria-label={ui.en.footerNav} data-i18n-aria="footerNav">
       <a href={`${homeHref}#compiler`}><T en={ui.en.compiler} zh={ui.zh.compiler} /></a>
@@ -21,7 +21,9 @@ const homeHref = href();
     <nav class="footer-nav" aria-label="Resources">
       <a href={href('docs')}><T en={ui.en.docs} zh={ui.zh.docs} /></a>
       <a href={href('start/quick-start')}><T en={ui.en.quickStart} zh={ui.zh.quickStart} /></a>
-      <a href={href('project/status')}><T en="Implementation status" zh="实现状态" /></a>
+      <a href={href('project/changelog')}><T en="Changelog" zh="变更记录" /></a>
+      <a href="https://crates.io/crates/sift-query" target="_blank" rel="noopener noreferrer">crates.io</a>
+      <a href="https://docs.rs/sift-query" target="_blank" rel="noopener noreferrer">docs.rs</a>
       <a href={githubRepo} target="_blank" rel="noopener noreferrer">GitHub</a>
     </nav>
   </div>

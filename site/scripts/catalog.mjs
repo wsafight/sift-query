@@ -52,7 +52,7 @@ export const groups = [
 export const pages = [
   {
     "source": "docs/guides/en/overview.md",
-    "translation": "README.md",
+    "translation": "README.zh-CN.md",
     "slug": "start/overview",
     "group": "start",
     "title": {
@@ -332,7 +332,7 @@ export const pages = [
   },
   {
     "source": "CHANGELOG.md",
-    "translation": null,
+    "translation": "docs/guides/zh/changelog.md",
     "slug": "project/changelog",
     "group": "project",
     "title": {
@@ -346,7 +346,7 @@ export const pages = [
   },
   {
     "source": "SECURITY.md",
-    "translation": null,
+    "translation": "docs/guides/zh/security.md",
     "slug": "project/security",
     "group": "project",
     "title": {

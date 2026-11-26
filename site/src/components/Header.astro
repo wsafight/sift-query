@@ -5,7 +5,7 @@ import Moon from '@lucide/astro/icons/moon';
 import BrandMark from './BrandMark.astro';
 import BracketLink from './BracketLink.astro';
 import T from './T.astro';
-import {href} from '../catalog';
+import {href, siteVersion} from '../catalog';
 import {githubRepo, ui} from '../i18n';
 
 interface Props { home?: boolean; }
@@ -13,6 +13,7 @@ const {home = false} = Astro.props;
 const homeHref = href();
 const docsHref = href('docs');
 const startHref = href('start/quick-start');
+const changelogHref = href('project/changelog');
 const nav = [
   {href: `${homeHref}#compiler`, en: ui.en.compiler, zh: ui.zh.compiler},
   {href: `${homeHref}#runtime`, en: ui.en.runtime, zh: ui.zh.runtime},
@@ -24,11 +25,15 @@ const nav = [
 ---
 <a class="skip-link" href="#main-content"><T en={ui.en.skip} zh={ui.zh.skip} /></a>
 <header class="site-header" id="site-header" data-header-theme={home ? 'dark' : undefined}>
+  {!home && <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>}
   <div class="site-header-inner">
-    <a class="brand-link" href={homeHref} aria-label={ui.en.home} data-i18n-aria="home">
-      <BrandMark />
-      <span class="brand-name">SiftQuery</span>
-    </a>
+    <div class="brand-group">
+      <a class="brand-link" href={homeHref} aria-label={ui.en.home} data-i18n-aria="home">
+        <BrandMark />
+        <span class="brand-name">SiftQuery</span>
+      </a>
+      <a class="version-pill" href={changelogHref} title="Changelog">v{siteVersion}</a>
+    </div>
     <nav class="desktop-nav" aria-label={ui.en.primaryNav} data-i18n-aria="primaryNav">
       {nav.map(item => (
         <a href={item.href} aria-current={item.current ? 'page' : undefined} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}><T en={item.en} zh={item.zh} /></a>
@@ -36,15 +41,18 @@ const nav = [
       <span class="nav-indicator" aria-hidden="true"></span>
     </nav>
     <div class="header-actions">
-      <button class="icon-button" type="button" data-search-open aria-haspopup="dialog" aria-controls="search-dialog" aria-label={ui.en.search} data-i18n-aria="search">
-        <Search size={18} stroke-width={1.75} />
+      <button class="icon-button search-trigger" type="button" data-search-open aria-haspopup="dialog" aria-controls="search-dialog" aria-label={ui.en.search} data-i18n-aria="search">
+        <Search size={17} stroke-width={1.75} />
+        <kbd class="search-kbd" aria-hidden="true">/</kbd>
       </button>
       <button class="icon-button" type="button" data-theme-toggle aria-label={ui.en.theme} data-i18n-aria="theme">
-        <Sun class="icon-sun" size={18} stroke-width={1.75} />
-        <Moon class="icon-moon" size={18} stroke-width={1.75} />
+        <Sun class="icon-sun" size={17} stroke-width={1.75} />
+        <Moon class="icon-moon" size={17} stroke-width={1.75} />
       </button>
-      <button class="icon-button language-toggle" type="button" data-lang-toggle aria-label={ui.en.lang} data-i18n-aria="lang">
-        <span class="i18n-en">中文</span><span class="i18n-zh">EN</span>
+      <button class="language-toggle" type="button" data-lang-toggle aria-label={ui.en.lang} data-i18n-aria="lang">
+        <span class="lang-opt lang-opt-en">EN</span>
+        <span class="lang-sep" aria-hidden="true">/</span>
+        <span class="lang-opt lang-opt-zh">中文</span>
       </button>
       <BracketLink class="bracket-link-small" href={startHref}><T en={ui.en.quickStart} zh={ui.zh.quickStart} /></BracketLink>
       <button class="menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label={ui.en.menuOpen} data-i18n-aria="menuOpen">

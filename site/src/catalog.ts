@@ -1,6 +1,7 @@
 import {groups, pages} from '../scripts/catalog.mjs';
+import {siteVersion} from '../.generated/version';
 
-export {groups, pages};
+export {groups, pages, siteVersion};
 export type DocGroup = (typeof groups)[number];
 export type DocPage = (typeof pages)[number];
 

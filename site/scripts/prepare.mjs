@@ -41,3 +41,4 @@ for (const sourceName of linkedSources) {
 const cargo = await readFile(path.join(root, 'Cargo.toml'), 'utf8');
 const version = cargo.match(/\[workspace\.package\][\s\S]*?\nversion\s*=\s*"([^"]+)"/)?.[1] || 'unknown';
 await writeFile(path.join(root, 'site/public/version.json'), `${JSON.stringify({version})}\n`);
+await writeFile(path.join(root, 'site/.generated/version.ts'), `export const siteVersion = ${JSON.stringify(version)};\n`);

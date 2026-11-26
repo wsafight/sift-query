@@ -289,12 +289,14 @@ pub(crate) async fn finish_statement<T>(
     result: Result<T, sqlx::Error>,
     stage: TimeoutStage,
 ) -> Result<(PoolConnection<Postgres>, T), PgSearchError> {
-    // The statement timeout must be cleared before the connection goes back
-    // to the pool. If the reset itself fails or times out, the connection is
-    // closed rather than handed back with a live server-side timeout.
+    // Restore the session default statement_timeout before returning the
+    // connection to the pool. If the reset itself fails or times out (for
+    // example inside an aborted Snapshot transaction), close the connection
+    // rather than returning it with a live timeout, while preserving any
+    // original query error.
     let reset = tokio::time::timeout(
         Duration::from_secs(1),
-        sqlx::query("SELECT set_config('statement_timeout', '0', false)").execute(&mut *connection),
+        sqlx::query("RESET statement_timeout").execute(&mut *connection),
     )
     .await;
     let reset_error = match reset {
@@ -302,14 +304,24 @@ pub(crate) async fn finish_statement<T>(
         Ok(Err(error)) => Some(PgSearchError::Sql(error)),
         Err(_) => Some(PgSearchError::Timeout(stage)),
     };
-    if let Some(error) = reset_error {
-        close_hard(connection).await;
-        return Err(error);
-    }
     match result {
-        Ok(value) => Ok((connection, value)),
-        Err(error) if is_statement_timeout(&error) => Err(PgSearchError::Timeout(stage)),
-        Err(error) => Err(PgSearchError::Sql(error)),
+        Ok(value) => {
+            if let Some(error) = reset_error {
+                close_hard(connection).await;
+                return Err(error);
+            }
+            Ok((connection, value))
+        }
+        Err(error) => {
+            if reset_error.is_some() {
+                close_hard(connection).await;
+            }
+            if is_statement_timeout(&error) {
+                Err(PgSearchError::Timeout(stage))
+            } else {
+                Err(PgSearchError::Sql(error))
+            }
+        }
     }
 }
 

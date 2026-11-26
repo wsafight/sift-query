@@ -161,6 +161,8 @@ impl PgRenderer {
             .meta
             .field(field_id)
             .ok_or(RenderError::UnknownField(field_id.0))?;
+        plan.validate_field_access([field_id])
+            .map_err(|error| RenderError::InvalidCondition(error.to_string()))?;
         if plan.meta.is_grouped() {
             return Err(RenderError::InvalidCondition(
                 "facets require a row-phase entity".to_owned(),

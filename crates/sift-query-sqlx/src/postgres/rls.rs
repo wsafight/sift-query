@@ -174,6 +174,9 @@ impl PgSiftQuery {
             )?,
             policy,
         )?;
+        if plan.force_empty || plan.paging.size == 0 {
+            return Ok(Box::pin(futures_util::stream::empty()));
+        }
         let partition = self.extensions.resolve_partition(&plan, "rls_scan")?;
         let prepared = crate::execution::io::prepare(self.render(
             &plan,
@@ -185,7 +188,7 @@ impl PgSiftQuery {
         let executor = self.clone();
         let context = context.clone();
         let stream = Box::pin(async_stream::try_stream! {
-            let mut transaction=executor.begin_rls(&context,policy.timeout).await?;
+            let mut transaction=executor.begin_rls_inner(&context,policy.timeout).await?;
             transaction.poisoned=true;
             let deadline=transaction.deadline;
             let connection=transaction.connection.as_mut().expect("active transaction");
@@ -210,7 +213,19 @@ impl PgSiftQuery {
         if timeout.is_zero() || timeout > Duration::from_secs(3600) {
             return Err(context_error());
         }
-        let deadline = Instant::now() + timeout.min(self.execution.timeout);
+        self.begin_rls_inner(context, timeout.min(self.execution.timeout))
+            .await
+    }
+
+    async fn begin_rls_inner(
+        &self,
+        context: &RlsContext,
+        timeout: Duration,
+    ) -> Result<PgRlsTransaction, PgSearchError> {
+        if timeout.is_zero() || timeout > Duration::from_secs(3600) {
+            return Err(context_error());
+        }
+        let deadline = Instant::now() + timeout;
         let mut connection = self.acquire(deadline).await?;
         connection.close_on_drop();
         timeout_at(deadline, async {

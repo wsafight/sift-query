@@ -43,7 +43,7 @@ rust_decimal = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json.workspace = true
 sift-query-algorithm.workspace = true
-sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-core = { version = "0.2.0", path = "../sift-query-core" }
 sift-query-sqlx-common.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros", "json"] }
 thiserror.workspace = true
@@ -60,7 +60,7 @@ proptest = "1.11.0"
 tracing-subscriber = { version = "0.3.20", features = ["fmt"] }
 criterion.workspace = true
 serde_json.workspace = true
-sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+sift-query-derive = { version = "0.2.0", path = "../sift-query-derive" }
 sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 

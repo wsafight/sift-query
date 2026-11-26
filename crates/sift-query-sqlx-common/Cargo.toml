@@ -30,14 +30,14 @@ indexmap.workspace = true
 poem = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 sift-query-algorithm.workspace = true
-sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-core = { version = "0.2.0", path = "../sift-query-core" }
 sqlx = { workspace = true, features = ["runtime-tokio"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "time"] }
 tracing.workspace = true
 
 [dev-dependencies]
-sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+sift-query-derive = { version = "0.2.0", path = "../sift-query-derive" }
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]

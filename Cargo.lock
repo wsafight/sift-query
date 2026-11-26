@@ -2438,7 +2438,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "sift-query"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "sift-query-core",
  "sift-query-derive",
@@ -2451,11 +2451,11 @@ dependencies = [
 
 [[package]]
 name = "sift-query-algorithm"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "sift-query-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64",
  "chrono",
@@ -2475,7 +2475,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-derive"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2487,7 +2487,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-example-actix-postgres"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "actix-web",
  "serde",
@@ -2497,7 +2497,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-example-axum-postgres"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "serde",
@@ -2509,7 +2509,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-example-poem-postgres"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "poem",
  "serde",
@@ -2520,7 +2520,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-mysql"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-stream",
  "chrono",
@@ -2540,7 +2540,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-sqlite"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-stream",
  "chrono",
@@ -2559,7 +2559,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-sqlx"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "actix-web",
  "async-stream",
@@ -2590,7 +2590,7 @@ dependencies = [
 
 [[package]]
 name = "sift-query-sqlx-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "actix-web",
  "axum",

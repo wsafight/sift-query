@@ -82,12 +82,12 @@ rsql = ["sift-query-core/rsql"]
 rls = ["postgres", "sift-query-sqlx/rls"]
 
 [dependencies]
-sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
-sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
-sift-query-sqlx-common = { version = "0.1.0", path = "../sift-query-sqlx-common", optional = true }
-sift-query-sqlx = { version = "0.1.0", path = "../sift-query-sqlx", optional = true }
-sift-query-mysql = { version = "0.1.0", path = "../sift-query-mysql", optional = true }
-sift-query-sqlite = { version = "0.1.0", path = "../sift-query-sqlite", optional = true }
+sift-query-core = { version = "0.2.0", path = "../sift-query-core" }
+sift-query-derive = { version = "0.2.0", path = "../sift-query-derive" }
+sift-query-sqlx-common = { version = "0.2.0", path = "../sift-query-sqlx-common", optional = true }
+sift-query-sqlx = { version = "0.2.0", path = "../sift-query-sqlx", optional = true }
+sift-query-mysql = { version = "0.2.0", path = "../sift-query-mysql", optional = true }
+sift-query-sqlite = { version = "0.2.0", path = "../sift-query-sqlite", optional = true }
 
 [dev-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros"] }

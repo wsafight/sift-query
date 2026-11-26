@@ -16,11 +16,11 @@ PostgreSQL 后端还提供三项面向生产的能力：`validate_schema::<E>()`
 
 ```toml
 [dependencies]
-sift-query = { version = "0.1.0", default-features = false, features = ["postgres", "serde"] }
+sift-query = { version = "0.2.0", default-features = false, features = ["postgres", "serde"] }
 sqlx = { version = "0.9", default-features = false, features = ["postgres", "runtime-tokio", "macros"] }
 ```
 
-0.1.0 已发布到 [crates.io](https://crates.io/crates/sift-query)，源码见 [GitHub](https://github.com/wsafight/sift-query)。最低 Rust 版本为 1.99.0；当前 API 为 pre-1.0。
+0.2.0 已发布到 [crates.io](https://crates.io/crates/sift-query)，源码见 [GitHub](https://github.com/wsafight/sift-query)。最低 Rust 版本为 1.99.0；当前 API 为 pre-1.0。
 
 从[安装](docs/guides/zh/installation.md)、[快速开始](docs/guides/zh/quick-start.md)和[数据库选择](docs/guides/zh/backend-selection.md)开始。项目已添加基于 app-struct UI 的中英文文档站点，本地运行及 GitHub Pages 部署见 [site/README.md](site/README.md)。
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0 — 2026-11-26
+
+### Breaking Changes
+
+- Unified shared backend types (`Page`, `CursorPage`, `RowMap`, `SummaryValue`, `ScanPolicy`, `TimeoutStage`, `QueryObservation`, `QueryObserver`, `ExtensionError`, `LabelEnricher`, `PageEnricher`, `TypedPageEnricher`, `CsvColumn`, `CsvExportPolicy`, `ExportLimiter`, and web extractors) in `sift-query-sqlx-common` and re-exported them directly from `sift-query` and `sift-query-sqlx`, removing duplicate backend-prefixed aliases such as `MySqlPage`, `SqliteScanPolicy`, and `mysql_web`.
+- Simplified `sift-query` feature flags by removing redundant `mysql-*` and `sqlite-*` combination features (`axum`, `actix-web`, `poem`, `chrono`, `decimal`, `json`, `serde`, and `uuid` now automatically propagate to any enabled backend).
+- Changed `ScanPolicy::validate` to return `Result<Self, ParamError>` and marked `TimeoutStage` as `#[non_exhaustive]`.
+
+### Fixes & Improvements
+
+- **Core**: Enforced expanded query complexity budgets across nested boolean groups, fixed `ServerScope` + `OR` semantics, and tightened cursor and bucket validation.
+- **SQL rendering**: Fixed cursor `NULL` bind leaks, `ORDER BY` null-ordering alignment, and `LIKE` escaping drift across PostgreSQL, MySQL/MariaDB, and SQLite.
+- **PostgreSQL**: Preserved original query errors when statement timeout reset fails, enforced field-access policies on buckets and facets, and respected scan row/time budgets under RLS.
+- **Deduplication**: Shared CSV export and web extractor implementations across all three sqlx backends via `sift-query-sqlx-common`.
+- **Docs**: Added a bilingual Astro documentation site.
+
 ## 0.1.0 — 2026-10-11
 
 - PostgreSQL typed and dynamic read-only queries, projections, grouping and summaries.

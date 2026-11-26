@@ -1,6 +1,6 @@
 # Security reporting
 
-SiftQuery is a pre-1.0 library. Security fixes target the latest 0.1.x release; no long-term support window is promised.
+SiftQuery is a pre-1.0 library. Security fixes target the latest 0.2.x release; no long-term support window is promised.
 
 Report suspected vulnerabilities privately through [GitHub private vulnerability reporting](https://github.com/wsafight/sift-query/security/advisories/new). Private reporting is enabled for this repository. General bug reports can use [GitHub issues](https://github.com/wsafight/sift-query/issues).
 

@@ -33,15 +33,15 @@ indexmap.workspace = true
 rust_decimal = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
-sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-core = { version = "0.2.0", path = "../sift-query-core" }
 sift-query-sqlx-common.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio", "mysql"] }
 tokio = { workspace = true, features = ["rt", "sync", "time"] }
 uuid = { workspace = true, optional = true }
 
 [dev-dependencies]
-sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
-sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+sift-query-core = { version = "0.2.0", path = "../sift-query-core" }
+sift-query-derive = { version = "0.2.0", path = "../sift-query-derive" }
 sqlx = { workspace = true, features = ["runtime-tokio", "mysql", "macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 

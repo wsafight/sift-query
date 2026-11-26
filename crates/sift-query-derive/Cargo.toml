@@ -22,7 +22,7 @@ sift-query-algorithm.workspace = true
 syn.workspace = true
 
 [dev-dependencies]
-sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
+sift-query-core = { version = "0.2.0", path = "../sift-query-core" }
 trybuild = "1.0.114"
 
 [lints]

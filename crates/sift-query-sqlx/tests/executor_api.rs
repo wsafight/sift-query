@@ -332,7 +332,7 @@ async fn extension_errors_display_their_context() {
             value: "x".to_owned(),
         }
         .to_string(),
-        "invalid PostgreSQL schema identifier: x"
+        "invalid schema identifier: x"
     );
 }
 

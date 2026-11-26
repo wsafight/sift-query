@@ -174,7 +174,8 @@ impl CsvExporter {
                 "csv_export",
                 async {
                     let query = query.into_user_query(&search.policy)?;
-                    let plan = QueryPlan::new(&query, scope, sift_query_core::QueryTarget::MapPage)?;
+                    let plan =
+                        QueryPlan::new(&query, scope, sift_query_core::QueryTarget::MapPage)?;
                     let columns = self.resolve_columns(&plan)?;
                     let rows = search.scan_map_stream(&query, scope, self.scan_policy())?;
                     self.write_stream::<E, W>(search, "csv_export", rows, &columns, writer)
@@ -205,7 +206,8 @@ impl CsvExporter {
                 "csv_export_rls",
                 async {
                     let query = query.into_user_query(&search.policy)?;
-                    let plan = QueryPlan::new(&query, scope, sift_query_core::QueryTarget::MapPage)?;
+                    let plan =
+                        QueryPlan::new(&query, scope, sift_query_core::QueryTarget::MapPage)?;
                     let columns = self.resolve_columns(&plan)?;
                     let rows =
                         search.scan_map_stream_rls(context, &query, scope, self.scan_policy())?;

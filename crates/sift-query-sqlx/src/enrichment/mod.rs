@@ -1,46 +1,16 @@
 use std::fmt;
-pub(crate) mod label;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Duration;
 
 use sift_query_core::{EntityMeta, Paging, PredicateArena, QueryPlan, QueryTarget, SearchEntity};
-use thiserror::Error;
-use tokio::time::timeout;
+use sift_query_sqlx_common::Extensions as CommonExtensions;
+pub use sift_query_sqlx_common::{
+    DictionaryLabelLoader, EnrichContext, ExtensionError, ExtensionFuture, Label, LabelEnricher,
+    LabelFailurePolicy, LabelLoader, LabelTarget, MissingLabelPolicy, PageEnricher,
+    TypedPageEnricher,
+};
 
 use crate::renderer::hash_shape;
 use crate::{Page, QueryShapeId, RenderedPgQuery, RowMap};
-
-pub type ExtensionFuture<T> = Pin<Box<dyn Future<Output = Result<T, ExtensionError>> + Send>>;
-
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-#[non_exhaustive]
-pub enum ExtensionError {
-    #[error("invalid PostgreSQL {kind} identifier: {value}")]
-    InvalidIdentifier { kind: &'static str, value: String },
-    #[error("{extension} rejected the query: {message}")]
-    Rejected {
-        extension: &'static str,
-        message: String,
-    },
-    #[error("partition source could not be applied to rendered SQL")]
-    PartitionSourceNotFound,
-    #[error("label loader timed out")]
-    LabelTimeout,
-    #[error("label loader exceeded its id budget of {0}")]
-    LabelIdLimit(usize),
-}
-
-impl ExtensionError {
-    #[must_use]
-    pub fn rejected(extension: &'static str, message: impl Into<String>) -> Self {
-        Self::Rejected {
-            extension,
-            message: message.into(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartitionName {
@@ -169,31 +139,12 @@ pub trait ResultFilter: Send + Sync {
     ) -> Result<ResultFilterDecision, ExtensionError>;
 }
 
-/// Context passed to post-query, whole-page enrichers.
-#[derive(Debug, Clone, Copy)]
-pub struct EnrichContext {
-    pub entity_name: &'static str,
-    pub operation: &'static str,
-}
-
-/// Asynchronous page-level result enhancement. Implementations should batch
-/// external lookups and must not change count, summaries, or cursor metadata.
-pub trait PageEnricher: Send + Sync {
-    fn enrich(&self, page: Page<RowMap>, context: EnrichContext) -> ExtensionFuture<Page<RowMap>>;
-}
-
-/// Explicit typed opt-in: implementers declare which presentation fields may
-/// be filled and preserve database fields and ordering keys.
-pub trait TypedPageEnricher<T>: Send + Sync {
-    fn enrich(&self, rows: Vec<T>, context: EnrichContext) -> ExtensionFuture<Vec<T>>;
-}
-
 #[derive(Clone, Default)]
 pub(crate) struct PgExtensions {
     partition_resolver: Option<Arc<dyn PartitionResolver>>,
     sql_interceptors: Vec<Arc<dyn SqlInterceptor>>,
     result_filters: Vec<Arc<dyn ResultFilter>>,
-    page_enrichers: Vec<Arc<dyn PageEnricher>>,
+    common: CommonExtensions,
 }
 
 impl fmt::Debug for PgExtensions {
@@ -203,7 +154,7 @@ impl fmt::Debug for PgExtensions {
             .field("has_partition_resolver", &self.partition_resolver.is_some())
             .field("sql_interceptors", &self.sql_interceptors.len())
             .field("result_filters", &self.result_filters.len())
-            .field("page_enrichers", &self.page_enrichers.len())
+            .field("page_enrichers", &self.common.page_enricher_count())
             .finish()
     }
 }
@@ -222,39 +173,16 @@ impl PgExtensions {
     }
 
     pub(crate) fn push_page_enricher(&mut self, enricher: Arc<dyn PageEnricher>) {
-        self.page_enrichers.push(enricher);
+        self.common.push_page_enricher_arc(enricher);
     }
 
     pub(crate) async fn enrich_page(
         &self,
         entity_name: &'static str,
         operation: &'static str,
-        mut page: Page<RowMap>,
+        page: Page<RowMap>,
     ) -> Result<Page<RowMap>, ExtensionError> {
-        let context = EnrichContext {
-            entity_name,
-            operation,
-        };
-        for enricher in &self.page_enrichers {
-            let count = page.total_count;
-            let summaries = page.summaries.clone();
-            let cursor = page.next_cursor.clone();
-            let rows = page.data.len();
-            page = timeout(Duration::from_secs(5), enricher.enrich(page, context))
-                .await
-                .map_err(|_| ExtensionError::LabelTimeout)??;
-            if page.total_count != count
-                || page.summaries != summaries
-                || page.next_cursor != cursor
-                || page.data.len() != rows
-            {
-                return Err(ExtensionError::rejected(
-                    "page_enricher",
-                    "enrichment must preserve row count, count, summaries and cursor",
-                ));
-            }
-        }
-        Ok(page)
+        self.common.enrich_page(entity_name, operation, page).await
     }
 
     pub(crate) fn resolve_partition<E: SearchEntity>(

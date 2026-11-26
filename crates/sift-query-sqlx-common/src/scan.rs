@@ -31,7 +31,7 @@ impl Default for ScanPolicy {
 }
 
 impl ScanPolicy {
-    pub fn validate(self) -> Result<Self, SearchError> {
+    pub fn validate(self) -> Result<Self, sift_query_core::ParamError> {
         if self.max_rows == 0
             || self.max_rows == u32::MAX
             || self.batch_size == 0
@@ -41,8 +41,7 @@ impl ScanPolicy {
             return Err(sift_query_core::ParamError::InvalidValue {
                 field: "scan".to_owned(),
                 reason: "scan requires finite row, batch and time budgets".to_owned(),
-            }
-            .into());
+            });
         }
         Ok(self)
     }

@@ -4,6 +4,36 @@
 pub use sift_query_core::*;
 pub use sift_query_derive::{SearchEntity, SearchProjection, search_entities};
 
+#[cfg(any(
+    feature = "postgres",
+    feature = "mysql",
+    feature = "sqlite",
+    feature = "axum",
+    feature = "actix-web",
+    feature = "poem"
+))]
+pub use sift_query_sqlx_common::{
+    BackendCapability, BackendCapabilitySet, BackendKind, CsvColumn, CsvExportPolicy, CursorPage,
+    DictionaryLabelLoader, EnrichContext, ExportLimiter, ExtensionError, ExtensionFuture, Label,
+    LabelEnricher, LabelFailurePolicy, LabelLoader, LabelTarget, MissingLabelPolicy, Page,
+    PageEnricher, QueryObservation, QueryObserver, RowMap, ScanPolicy, SummaryValue, TimeoutStage,
+    TypedPageEnricher, backend_capabilities,
+};
+
+#[cfg(all(
+    any(
+        feature = "mysql",
+        feature = "sqlite",
+        feature = "axum",
+        feature = "actix-web",
+        feature = "poem"
+    ),
+    not(feature = "postgres")
+))]
+pub use sift_query_sqlx_common::web::{
+    self, PublicError, QueryParams, SearchParamConfig, SearchParams, WebError, public_error,
+};
+
 #[cfg(feature = "postgres")]
 pub use sift_query_sqlx::*;
 
@@ -12,31 +42,17 @@ pub use sift_query_sqlx::PgSearchError as SearchError;
 
 #[cfg(feature = "mysql")]
 pub use sift_query_mysql::{
-    CsvColumn as MySqlCsvColumn, CsvExportPolicy as MySqlCsvExportPolicy,
-    CsvExporter as MySqlCsvExporter, CursorPage as MySqlCursorPage, MySqlBackend,
-    MySqlExecutionPolicy, MySqlPoolRouter, MySqlSiftQuery, Page as MySqlPage,
-    ScanFuture as MySqlScanFuture, ScanPolicy as MySqlScanPolicy,
+    CsvExporter as MySqlCsvExporter, MySqlBackend, MySqlExecutionPolicy, MySqlPoolRouter,
+    MySqlSiftQuery, ScanFuture as MySqlScanFuture, SearchError as MySqlSearchError,
     SearchStream as MySqlSearchStream,
 };
 
-#[cfg(feature = "mysql")]
-pub use sift_query_mysql::SearchError as MySqlSearchError;
-#[cfg(feature = "mysql")]
-pub use sift_query_mysql::web as mysql_web;
-
 #[cfg(feature = "sqlite")]
 pub use sift_query_sqlite::{
-    CsvColumn as SqliteCsvColumn, CsvExportPolicy as SqliteCsvExportPolicy,
-    CsvExporter as SqliteCsvExporter, CursorPage as SqliteCursorPage, Page as SqlitePage,
-    ScanFuture as SqliteScanFuture, ScanPolicy as SqliteScanPolicy,
-    SearchStream as SqliteSearchStream, SqliteBackend, SqliteExecutionPolicy, SqlitePoolRouter,
-    SqliteSiftQuery,
+    CsvExporter as SqliteCsvExporter, ScanFuture as SqliteScanFuture,
+    SearchError as SqliteSearchError, SearchStream as SqliteSearchStream, SqliteBackend,
+    SqliteExecutionPolicy, SqlitePoolRouter, SqliteSiftQuery,
 };
-
-#[cfg(feature = "sqlite")]
-pub use sift_query_sqlite::SearchError as SqliteSearchError;
-#[cfg(feature = "sqlite")]
-pub use sift_query_sqlite::web as sqlite_web;
 
 #[doc(hidden)]
 pub mod __private {

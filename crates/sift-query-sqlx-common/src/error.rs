@@ -4,8 +4,10 @@ use thiserror::Error;
 use crate::{ExtensionError, RenderError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum TimeoutStage {
     PoolAcquire,
+    SchemaValidation,
     ListQuery,
     ClusterQuery,
     Scan,
@@ -17,6 +19,7 @@ impl std::fmt::Display for TimeoutStage {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
             Self::PoolAcquire => "pool acquire",
+            Self::SchemaValidation => "schema validation",
             Self::ListQuery => "list query",
             Self::ClusterQuery => "cluster query",
             Self::Scan => "scan",

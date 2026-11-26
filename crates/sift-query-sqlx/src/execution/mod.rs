@@ -2,11 +2,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use indexmap::IndexMap;
 use sift_query_core::{
-    AggregateFn, ConfigError, FieldRef, GroupScope, ParamError, ParamParser, QueryBuilder,
-    QueryInput, QueryPlan, QueryPolicy, QueryTarget, RawParams, RowValue, SearchEntity,
-    SearchOptions, ServerScope, SummableKind, ValueType,
+    ConfigError, FieldRef, GroupScope, ParamError, ParamParser, QueryBuilder, QueryInput,
+    QueryPlan, QueryPolicy, QueryTarget, RawParams, SearchEntity, SearchOptions, ServerScope,
+    SummableKind,
 };
 use sqlx::postgres::{PgPool, PgRow};
 use sqlx::{Decode, FromRow, Postgres, Type};
@@ -32,60 +31,7 @@ pub(crate) mod strategy;
 pub(crate) mod stream;
 pub(crate) mod window;
 
-pub type RowMap = IndexMap<String, RowValue>;
-
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct Page<T> {
-    pub data: Vec<T>,
-    pub total_count: i64,
-    pub summaries: Vec<SummaryValue>,
-    pub next_cursor: Option<String>,
-}
-
-impl<T> Page<T> {
-    /// Creates an empty page with the same metadata contract as a successful
-    /// zero-row query.
-    #[must_use]
-    pub fn empty() -> Self {
-        Self {
-            data: Vec::new(),
-            total_count: 0,
-            summaries: Vec::new(),
-            next_cursor: None,
-        }
-    }
-}
-
-/// A cursor page fetched without a count or cluster query.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct CursorPage<T> {
-    pub data: Vec<T>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
-
-impl<T> CursorPage<T> {
-    /// Creates an empty cursor page. An empty page never has a continuation.
-    #[must_use]
-    pub fn empty() -> Self {
-        Self {
-            data: Vec::new(),
-            next_cursor: None,
-            has_more: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct SummaryValue {
-    pub field: &'static str,
-    pub function: AggregateFn,
-    pub value_type: ValueType,
-    pub value: Option<RowValue>,
-}
+pub use sift_query_sqlx_common::{CursorPage, Page, RowMap, SummaryValue};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PgExecutionPolicy {

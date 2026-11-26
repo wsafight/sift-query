@@ -14,35 +14,64 @@ categories = ["database", "web-programming"]
 
 [features]
 default = ["postgres", "chrono", "decimal", "json", "serde", "uuid"]
-postgres = ["dep:sift-query-sqlx"]
-mysql = ["dep:sift-query-mysql"]
-sqlite = ["dep:sift-query-sqlite"]
-mysql-axum = ["mysql", "sift-query-mysql/axum"]
-mysql-actix-web = ["mysql", "sift-query-mysql/actix-web"]
-mysql-poem = ["mysql", "sift-query-mysql/poem"]
-sqlite-axum = ["sqlite", "sift-query-sqlite/axum"]
-sqlite-actix-web = ["sqlite", "sift-query-sqlite/actix-web"]
-sqlite-poem = ["sqlite", "sift-query-sqlite/poem"]
-axum = ["postgres", "sift-query-sqlx/axum"]
-actix-web = ["postgres", "sift-query-sqlx/actix-web"]
-poem = ["postgres", "sift-query-sqlx/poem"]
-chrono = ["sift-query-core/chrono", "sift-query-sqlx?/chrono", "sift-query-mysql?/chrono", "sift-query-sqlite?/chrono"]
-decimal = ["sift-query-core/decimal", "sift-query-sqlx?/decimal", "sift-query-mysql?/decimal"]
-json = ["sift-query-core/json", "sift-query-sqlx?/json", "sift-query-mysql?/json", "sift-query-sqlite?/json"]
+postgres = ["dep:sift-query-sqlx", "dep:sift-query-sqlx-common"]
+mysql = ["dep:sift-query-mysql", "dep:sift-query-sqlx-common"]
+sqlite = ["dep:sift-query-sqlite", "dep:sift-query-sqlx-common"]
+axum = [
+    "dep:sift-query-sqlx-common",
+    "sift-query-sqlx-common/axum",
+    "sift-query-sqlx?/axum",
+    "sift-query-mysql?/axum",
+    "sift-query-sqlite?/axum",
+]
+actix-web = [
+    "dep:sift-query-sqlx-common",
+    "sift-query-sqlx-common/actix-web",
+    "sift-query-sqlx?/actix-web",
+    "sift-query-mysql?/actix-web",
+    "sift-query-sqlite?/actix-web",
+]
+poem = [
+    "dep:sift-query-sqlx-common",
+    "sift-query-sqlx-common/poem",
+    "sift-query-sqlx?/poem",
+    "sift-query-mysql?/poem",
+    "sift-query-sqlite?/poem",
+]
+chrono = [
+    "sift-query-core/chrono",
+    "sift-query-sqlx-common?/chrono",
+    "sift-query-sqlx?/chrono",
+    "sift-query-mysql?/chrono",
+    "sift-query-sqlite?/chrono",
+]
+decimal = [
+    "sift-query-core/decimal",
+    "sift-query-sqlx-common?/decimal",
+    "sift-query-sqlx?/decimal",
+    "sift-query-mysql?/decimal",
+]
+json = [
+    "sift-query-core/json",
+    "sift-query-sqlx-common?/json",
+    "sift-query-sqlx?/json",
+    "sift-query-mysql?/json",
+    "sift-query-sqlite?/json",
+]
 serde = [
     "sift-query-core/serde",
+    "sift-query-sqlx-common?/serde",
     "sift-query-sqlx?/serde",
     "sift-query-mysql?/serde",
     "sift-query-sqlite?/serde",
 ]
-uuid = ["sift-query-core/uuid", "sift-query-sqlx?/uuid", "sift-query-mysql?/uuid", "sift-query-sqlite?/uuid"]
-mysql-chrono = ["mysql", "sift-query-mysql/chrono"]
-mysql-decimal = ["mysql", "sift-query-mysql/decimal"]
-mysql-json = ["mysql", "sift-query-mysql/json"]
-mysql-uuid = ["mysql", "sift-query-mysql/uuid"]
-sqlite-chrono = ["sqlite", "sift-query-sqlite/chrono"]
-sqlite-json = ["sqlite", "sift-query-sqlite/json"]
-sqlite-uuid = ["sqlite", "sift-query-sqlite/uuid"]
+uuid = [
+    "sift-query-core/uuid",
+    "sift-query-sqlx-common?/uuid",
+    "sift-query-sqlx?/uuid",
+    "sift-query-mysql?/uuid",
+    "sift-query-sqlite?/uuid",
+]
 postgres-types = ["postgres", "sift-query-sqlx/postgres-types"]
 postgres-search = ["postgres", "sift-query-sqlx/postgres-search"]
 pg-trgm = ["postgres-search", "sift-query-sqlx/pg-trgm"]
@@ -55,6 +84,7 @@ rls = ["postgres", "sift-query-sqlx/rls"]
 [dependencies]
 sift-query-core = { version = "0.1.0", path = "../sift-query-core" }
 sift-query-derive = { version = "0.1.0", path = "../sift-query-derive" }
+sift-query-sqlx-common = { version = "0.1.0", path = "../sift-query-sqlx-common", optional = true }
 sift-query-sqlx = { version = "0.1.0", path = "../sift-query-sqlx", optional = true }
 sift-query-mysql = { version = "0.1.0", path = "../sift-query-mysql", optional = true }
 sift-query-sqlite = { version = "0.1.0", path = "../sift-query-sqlite", optional = true }

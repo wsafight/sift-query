@@ -27,40 +27,7 @@ pub type SearchStream<T> = Pin<Box<dyn Stream<Item = Result<T, PgSearchError>> +
 pub type ScanFuture<T> =
     Pin<Box<dyn std::future::Future<Output = Result<Vec<T>, PgSearchError>> + Send>>;
 
-/// Server-owned single-statement scan budget. PostgreSQL provides one statement
-/// snapshot; `batch_size` controls cooperative handoff, not cursor pagination.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ScanPolicy {
-    pub max_rows: u32,
-    pub batch_size: u32,
-    pub timeout: Duration,
-}
-impl Default for ScanPolicy {
-    fn default() -> Self {
-        Self {
-            max_rows: 10_000,
-            batch_size: 256,
-            timeout: Duration::from_secs(60),
-        }
-    }
-}
-impl ScanPolicy {
-    pub fn validate(self) -> Result<Self, PgSearchError> {
-        if self.max_rows == 0
-            || self.max_rows == u32::MAX
-            || self.batch_size == 0
-            || self.batch_size > 16_384
-            || self.timeout.is_zero()
-        {
-            return Err(sift_query_core::ParamError::InvalidValue {
-                field: "scan".to_owned(),
-                reason: "scan requires finite row, batch and time budgets".to_owned(),
-            }
-            .into());
-        }
-        Ok(self)
-    }
-}
+pub use sift_query_sqlx_common::ScanPolicy;
 
 impl PgSiftQuery {
     /// Streams a page without count. Early drop closes the checked-out

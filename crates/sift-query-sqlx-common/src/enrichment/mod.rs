@@ -16,11 +16,15 @@ pub type ExtensionFuture<T> = Pin<Box<dyn Future<Output = Result<T, ExtensionErr
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
 pub enum ExtensionError {
+    #[error("invalid {kind} identifier: {value}")]
+    InvalidIdentifier { kind: &'static str, value: String },
     #[error("{extension} rejected the query: {message}")]
     Rejected {
         extension: &'static str,
         message: String,
     },
+    #[error("partition source could not be applied to rendered SQL")]
+    PartitionSourceNotFound,
     #[error("label loader timed out")]
     LabelTimeout,
     #[error("label loader exceeded its id budget of {0}")]
@@ -66,8 +70,17 @@ impl std::fmt::Debug for Extensions {
 }
 
 impl Extensions {
+    #[must_use]
+    pub fn page_enricher_count(&self) -> usize {
+        self.page_enrichers.len()
+    }
+
     pub fn push_page_enricher<E: PageEnricher + 'static>(&mut self, enricher: E) {
         self.page_enrichers.push(std::sync::Arc::new(enricher));
+    }
+
+    pub fn push_page_enricher_arc(&mut self, enricher: std::sync::Arc<dyn PageEnricher>) {
+        self.page_enrichers.push(enricher);
     }
 
     pub async fn enrich_page(

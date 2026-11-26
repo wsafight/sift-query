@@ -19,14 +19,11 @@ pub use postgres::rls::{PgRlsTransaction, RlsConfig, RlsContext};
 
 pub use cache::{QueryShapeCache, ShapeCacheStats};
 pub use diagnostics::{DiagnosticStage, IndexAdvice, QueryDiagnosticReport};
-pub use enrichment::label::{
-    DictionaryLabelLoader, Label, LabelEnricher, LabelFailurePolicy, LabelLoader, LabelTarget,
-    MissingLabelPolicy,
-};
 pub use enrichment::{
-    EnrichContext, ExtensionError, ExtensionFuture, PageEnricher, PartitionName, PartitionResolver,
-    QueryContext, ResultContext, ResultFilter, ResultFilterDecision, SqlContext, SqlInterceptor,
-    TypedPageEnricher,
+    DictionaryLabelLoader, EnrichContext, ExtensionError, ExtensionFuture, Label, LabelEnricher,
+    LabelFailurePolicy, LabelLoader, LabelTarget, MissingLabelPolicy, PageEnricher, PartitionName,
+    PartitionResolver, QueryContext, ResultContext, ResultFilter, ResultFilterDecision, SqlContext,
+    SqlInterceptor, TypedPageEnricher,
 };
 pub use error::{DecodeError, PgSearchError, RenderError, SchemaValidationError, TimeoutStage};
 pub use execution::strategy::{CountStrategy, ExecutionStrategy, SnapshotIsolation};
@@ -43,4 +40,7 @@ pub use router::{PgPoolRouter, PgPoolSelector, PoolRouteError};
 pub use schema::{SchemaValidationReport, SchemaValidationTarget};
 pub use sift_query_core as core;
 pub use sift_query_core::{FacetBucket, FacetRequest, FacetResult};
+pub use sift_query_sqlx_common::{
+    BackendCapability, BackendCapabilitySet, BackendKind, backend_capabilities,
+};
 pub use web::{PublicError, QueryParams, SearchParamConfig, SearchParams, WebError, public_error};

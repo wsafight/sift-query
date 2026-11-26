@@ -12,23 +12,7 @@ use crate::{PgSearchError, PgSiftQuery, SearchStream};
 use sift_query_core::SearchEntity;
 use tracing::Instrument;
 
-#[derive(Debug, Clone, Copy)]
-pub struct QueryObservation {
-    pub entity: &'static str,
-    pub operation: &'static str,
-    pub duration: Duration,
-    pub rows_returned: usize,
-    /// `success`, `cancelled`, or a low-cardinality error category.
-    pub outcome: &'static str,
-    pub slow: bool,
-}
-
-/// Metrics/event bridge. Called once per completed or cancelled operation;
-/// panics are isolated. The callback must be nonblocking and cannot see SQL,
-/// binds, raw input, tenant identifiers, or cursor tokens.
-pub trait QueryObserver: Send + Sync {
-    fn completed(&self, observation: &QueryObservation);
-}
+pub use sift_query_sqlx_common::{QueryObservation, QueryObserver};
 
 #[derive(Clone, Default)]
 pub(crate) struct Observers {

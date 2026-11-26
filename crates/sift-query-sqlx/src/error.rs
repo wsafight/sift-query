@@ -32,30 +32,7 @@ pub struct SchemaValidationError {
     pub details: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TimeoutStage {
-    PoolAcquire,
-    SchemaValidation,
-    ListQuery,
-    ClusterQuery,
-    Scan,
-    Export,
-    Enrichment,
-}
-
-impl std::fmt::Display for TimeoutStage {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(match self {
-            Self::PoolAcquire => "pool acquire",
-            Self::SchemaValidation => "schema validation",
-            Self::ListQuery => "list query",
-            Self::ClusterQuery => "cluster query",
-            Self::Scan => "scan",
-            Self::Export => "export",
-            Self::Enrichment => "enrichment",
-        })
-    }
-}
+pub use sift_query_sqlx_common::TimeoutStage;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]

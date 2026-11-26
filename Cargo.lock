@@ -2445,6 +2445,7 @@ dependencies = [
  "sift-query-mysql",
  "sift-query-sqlite",
  "sift-query-sqlx",
+ "sift-query-sqlx-common",
  "sqlx",
 ]
 

@@ -4,7 +4,7 @@ This English guide summarizes the [complete Chinese contract](../../11-RELEASE-A
 
 ## Published release
 
-All eight workspace library crates are published at 0.1.0 on [crates.io](https://crates.io/crates/sift-query). The release source is commit `944fd5c34ba0a018c7b0fd2537e0959642e9c872`, tagged [v0.1.0](https://github.com/wsafight/sift-query/releases/tag/v0.1.0). Rust 1.99.0 and SQLx 0.9 are required.
+All eight workspace library crates are published at 0.2.0 on [crates.io](https://crates.io/crates/sift-query), tagged [v0.2.0](https://github.com/wsafight/sift-query/releases/tag/v0.2.0). Rust 1.95.0+ (MSRV) and SQLx 0.9 are required.
 
 The API is pre-1.0. Minor 0.x versions may include documented API changes; patch releases preserve compatibility. Protocol/cursor changes need migration notes, and MSRV changes belong in minor-release notes.
 

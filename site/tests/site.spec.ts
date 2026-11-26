@@ -123,6 +123,20 @@ test('Chinese guides and the complete reference render', async ({page}) => {
   await expect(page.locator('.prose.i18n-zh')).toContainText('Rust 1.95.0');
   await page.goto(`${base}query/protocol/?lang=zh`);
   await expect(page.locator('.prose.i18n-zh')).toContainText('查询预算');
+  const sourceDisplay = await page.locator('.i18n-zh .docs-source').evaluate(node => getComputedStyle(node).display);
+  expect(sourceDisplay).toBe('inline-flex');
+});
+
+test('docs sidebar preserves scroll position across navigation', async ({page}, info) => {
+  test.skip(info.project.name === 'mobile', 'Desktop sticky sidebar only');
+  await page.setViewportSize({width: 1280, height: 640});
+  await page.goto(`${base}backends/backend-selection/`);
+  const sidebar = page.locator('#docs-sidebar');
+  await sidebar.evaluate(node => { node.scrollTop = 260; });
+  await sidebar.locator('a[href$="/backends/release/"]').click();
+  await expect(page).toHaveURL(`${base}backends/release/`);
+  const afterTop = await page.locator('#docs-sidebar').evaluate(node => node.scrollTop);
+  expect(afterTop).toBeGreaterThan(100);
 });
 
 test('English guide links open the complete Chinese contract', async ({page}) => {

@@ -297,6 +297,35 @@ function watchToc() {
 }
 watchToc();
 
+// Preserve and restore docs sidebar scroll position across navigation
+const docsSidebar = document.querySelector<HTMLElement>('#docs-sidebar');
+if (docsSidebar) {
+  const STORAGE_KEY = 'siftquery-sidebar-scroll';
+  const restoreSidebarScroll = () => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved !== null) {
+      const top = Number(saved);
+      if (Number.isFinite(top)) docsSidebar.scrollTop = top;
+    }
+    const active = docsSidebar.querySelector<HTMLElement>('a[aria-current="page"]');
+    if (active) {
+      const sRect = docsSidebar.getBoundingClientRect();
+      const aRect = active.getBoundingClientRect();
+      if (sRect.height > 0 && (aRect.top < sRect.top + 12 || aRect.bottom > sRect.bottom - 12)) {
+        docsSidebar.scrollTop += aRect.top - sRect.top - sRect.height / 2 + aRect.height / 2;
+      }
+    }
+  };
+  restoreSidebarScroll();
+  requestAnimationFrame(restoreSidebarScroll);
+
+  const saveSidebarScroll = () => {
+    try { sessionStorage.setItem(STORAGE_KEY, String(docsSidebar.scrollTop)); } catch {}
+  };
+  docsSidebar.addEventListener('scroll', saveSidebarScroll, {passive: true});
+  docsSidebar.querySelectorAll('a').forEach(link => link.addEventListener('click', saveSidebarScroll));
+}
+
 // Reading progress indicator on documentation pages
 const progressBar = document.querySelector<HTMLElement>('#reading-progress');
 if (progressBar) {

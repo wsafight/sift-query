@@ -15,7 +15,12 @@ await rm(publicSource, {recursive: true, force: true});
 
 async function renderDoc(lang, page, sourceName) {
   const sourcePath = path.join(root, sourceName);
-  const value = await readFile(sourcePath, 'utf8');
+  const raw = await readFile(sourcePath, 'utf8');
+  const value = sourceName.startsWith('README')
+    ? raw
+        .replace(/^\[!\[[^\]]*\]\(https?:\/\/[^)]+\)\]\([^)]+\)\s*$/gm, '')
+        .replace(/^(?:\[English\]\(README\.md\) \| 简体中文|English \| \[简体中文\]\(README\.zh-CN\.md\))\s*$/gm, '')
+    : raw;
   const rendered = await processor.process({path: sourcePath, value});
   const destination = path.join(generated, lang, `${page.slug}.md`);
   await mkdir(path.dirname(destination), {recursive: true});

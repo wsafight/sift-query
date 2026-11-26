@@ -8,7 +8,7 @@ repository.workspace = true
 description = "A parameter-driven, read-only query layer for Rust"
 readme = "README.md"
 documentation = "https://docs.rs/sift-query"
-homepage = "https://docs.rs/sift-query"
+homepage = "https://wsafight.github.io/sift-query/"
 keywords = ["sqlx", "query", "postgres", "filter", "search"]
 categories = ["database", "web-programming"]
 

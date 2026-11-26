@@ -4,7 +4,7 @@ This English guide summarizes the [complete Chinese contract](../../06-STATUS.md
 
 ## Released version
 
-Version 0.1.0 is available for all eight library crates. The release and source tag are [v0.1.0](https://github.com/wsafight/sift-query/releases/tag/v0.1.0). Rust 1.99.0 and SQLx 0.9 are the current toolchain contract; API stability is pre-1.0.
+Version 0.2.0 is available for all eight library crates. The release and source tag are [v0.2.0](https://github.com/wsafight/sift-query/releases/tag/v0.2.0). Rust 1.95.0+ (MSRV) and SQLx 0.9 are the current toolchain contract; API stability is pre-1.0.
 
 ## Implemented capabilities
 

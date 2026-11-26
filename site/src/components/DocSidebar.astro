@@ -5,7 +5,7 @@ import T from './T.astro';
 interface Props { current?: string; }
 const {current} = Astro.props;
 ---
-<nav class="docs-sidebar" aria-label={ui.en.docsNav} data-i18n-aria="docsNav">
+<nav class="docs-sidebar" id="docs-sidebar" aria-label={ui.en.docsNav} data-i18n-aria="docsNav">
   <details class="docs-nav-panel">
     <summary><T en={ui.en.browseDocs} zh={ui.zh.browseDocs} /></summary>
     <div class="docs-nav-groups">
@@ -20,3 +20,22 @@ const {current} = Astro.props;
     </div>
   </details>
 </nav>
+<script is:inline>
+  (() => {
+    const sidebar = document.getElementById('docs-sidebar');
+    if (!sidebar) return;
+    const saved = sessionStorage.getItem('siftquery-sidebar-scroll');
+    if (saved !== null) {
+      const top = Number(saved);
+      if (Number.isFinite(top)) sidebar.scrollTop = top;
+    }
+    const active = sidebar.querySelector('a[aria-current="page"]');
+    if (active) {
+      const sRect = sidebar.getBoundingClientRect();
+      const aRect = active.getBoundingClientRect();
+      if (sRect.height > 0 && (aRect.top < sRect.top + 12 || aRect.bottom > sRect.bottom - 12)) {
+        sidebar.scrollTop += aRect.top - sRect.top - sRect.height / 2 + aRect.height / 2;
+      }
+    }
+  })();
+</script>

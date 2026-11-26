@@ -2,6 +2,12 @@
 
 # SiftQuery
 
+[![CI](https://github.com/wsafight/sift-query/actions/workflows/ci.yml/badge.svg)](https://github.com/wsafight/sift-query/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/sift-query.svg)](https://crates.io/crates/sift-query)
+[![Docs.rs](https://docs.rs/sift-query/badge.svg)](https://docs.rs/sift-query)
+[![MSRV](https://img.shields.io/badge/rustc-1.95%2B-orange.svg)](Cargo.toml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 SiftQuery 是 Rust/sqlx 的类型化只读查询库。应用声明允许查询的字段、运算符和服务端 Scope，库负责参数解析、计划、参数化 SQL、分页和查询预算。
 
 PostgreSQL 后端还提供三项面向生产的能力：`validate_schema::<E>()` 用 `EXPLAIN` 做启动/CI schema 合同校验；`ScopeProvider` 与 `search_authorized` 等入口把认证上下文转换为服务端权限范围；`FacetRequest`、`facets` 和 `search_map_with_facets` 提供受限、复用同一过滤与 Scope 的聚合桶。Facet 只接受实体声明的字段，不接受客户端 SQL。

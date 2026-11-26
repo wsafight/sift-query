@@ -53,8 +53,8 @@ const hasToc = outline(headingsEn).length > 0 || outline(headingsZh).length > 0;
         <h1><T en={page.title.en} zh={page.title.zh} /></h1>
         <p class="docs-lead"><T en={page.description.en} zh={page.description.zh} /></p>
         <div class="docs-meta-row">
-          <a class="docs-source i18n-en" href={sourceHrefEn}><FileText size={13} aria-hidden="true" /> View source · {page.source}</a>
-          <a class="docs-source i18n-zh" href={sourceHrefZh}><FileText size={13} aria-hidden="true" /> 查看原文 · {page.translation || page.source}</a>
+          <span class="i18n-en"><a class="docs-source" href={sourceHrefEn}><FileText size={13} aria-hidden="true" /> View source · {page.source}</a></span>
+          <span class="i18n-zh"><a class="docs-source" href={sourceHrefZh}><FileText size={13} aria-hidden="true" /> 查看原文 · {page.translation || page.source}</a></span>
         </div>
       </header>
       <div class="prose i18n-en"><ContentEn /></div>

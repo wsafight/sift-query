@@ -2,6 +2,12 @@ English | [简体中文](README.zh-CN.md)
 
 # SiftQuery
 
+[![CI](https://github.com/wsafight/sift-query/actions/workflows/ci.yml/badge.svg)](https://github.com/wsafight/sift-query/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/sift-query.svg)](https://crates.io/crates/sift-query)
+[![Docs.rs](https://docs.rs/sift-query/badge.svg)](https://docs.rs/sift-query)
+[![MSRV](https://img.shields.io/badge/rustc-1.95%2B-orange.svg)](Cargo.toml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 SiftQuery is a typed, parameter-driven, read-only query library for Rust and SQLx. Your application declares allowed fields, operators, projections, and server-owned scopes; SiftQuery validates request parameters, enforces query budgets, and renders parameterized SQL across PostgreSQL, MySQL/MariaDB, and SQLite.
 
 ## Why SiftQuery

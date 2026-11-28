@@ -6,10 +6,10 @@ use crate::*;
 use sift_query_core::{
     GroupScope, QueryInput, QueryPlan, QueryTarget, SearchEntity, SearchOptions, ServerScope,
 };
-use sift_query_sqlx_common::{Backend, RenderedQuery};
+use sift_query_sqlx_common::{Backend, RenderedQuery, TimeoutStage};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Sqlite};
-use tokio::time::timeout;
+use tokio::time::{Instant, timeout, timeout_at};
 
 impl SqliteSiftQuery {
     pub async fn search<E>(
@@ -161,19 +161,46 @@ impl SqliteSiftQuery {
         if plan.force_empty {
             return Ok(Page::empty());
         }
-        let data = self.fetch_typed(self.renderer.render_list(&plan)?).await?;
-        let (total_count, summaries) = self
-            .fetch_cluster(
-                self.renderer.render_cluster(&plan, options)?,
-                options,
-                plan.meta,
-            )
-            .await?;
+        let list = (plan.paging.size > 0)
+            .then(|| self.renderer.render_list(&plan))
+            .transpose()?;
+        let cluster = self.renderer.render_cluster(&plan, options)?;
+        let deadline = Instant::now() + self.execution.timeout;
+        let mut conn = timeout_at(deadline, self.pool.acquire())
+            .await
+            .map_err(|_| SearchError::Timeout(TimeoutStage::PoolAcquire))??;
+        let data = match list {
+            Some(rendered) => {
+                let args = SqliteBackend::arguments(&rendered.binds)?;
+                timeout_at(
+                    deadline,
+                    sqlx::query_as_with::<Sqlite, E, _>(sqlx::AssertSqlSafe(rendered.sql), args)
+                        .fetch_all(&mut *conn),
+                )
+                .await
+                .map_err(|_| SearchError::Timeout(TimeoutStage::ListQuery))??
+            }
+            None => Vec::new(),
+        };
+        let cluster_args = SqliteBackend::arguments(&cluster.binds)?;
+        let row = timeout_at(
+            deadline,
+            sqlx::query_with(sqlx::AssertSqlSafe(cluster.sql), cluster_args).fetch_one(&mut *conn),
+        )
+        .await
+        .map_err(|_| SearchError::Timeout(TimeoutStage::ClusterQuery))??;
+        let total_count = SqliteBackend::count(&row)?;
+        let summaries = decode_summaries::<E>(&row, options, plan.meta)?;
+        let next_cursor = if data.len() == plan.paging.size as usize {
+            entity_cursor(&self.policy, &plan, data.last())?
+        } else {
+            None
+        };
         Ok(Page {
             data,
             total_count,
             summaries,
-            next_cursor: None,
+            next_cursor,
         })
     }
 
@@ -229,17 +256,20 @@ impl SqliteSiftQuery {
                         return Ok(CursorPage::empty());
                     }
                     let mut data = self
-                        .fetch_maps(self.renderer.render_list(&plan)?, &plan)
+                        .fetch_raw_maps(self.renderer.render_list(&plan)?, &plan)
                         .await?;
                     let has_more = data.len() > size as usize;
                     if has_more {
                         data.truncate(size as usize);
                     }
+                    // Derive the cursor token from raw database values before
+                    // result codecs format or transform fields.
                     let next_cursor = if has_more {
                         map_cursor(&self.policy, &plan, data.last())?
                     } else {
                         None
                     };
+                    self.format_map_rows::<E>(&mut data)?;
                     let page = self
                         .extensions
                         .enrich_page(
@@ -312,16 +342,44 @@ impl SqliteSiftQuery {
         if plan.force_empty {
             return Ok(Page::empty());
         }
-        let data = self
-            .fetch_maps(self.renderer.render_list(&plan)?, &plan)
-            .await?;
-        let (total_count, summaries) = self
-            .fetch_cluster(
-                self.renderer.render_cluster(&plan, options)?,
-                options,
-                plan.meta,
-            )
-            .await?;
+        let list = (plan.paging.size > 0)
+            .then(|| self.renderer.render_list(&plan))
+            .transpose()?;
+        let cluster = self.renderer.render_cluster(&plan, options)?;
+        let deadline = Instant::now() + self.execution.timeout;
+        let mut conn = timeout_at(deadline, self.pool.acquire())
+            .await
+            .map_err(|_| SearchError::Timeout(TimeoutStage::PoolAcquire))??;
+        let mut data = match list {
+            Some(rendered) => {
+                let args = SqliteBackend::arguments(&rendered.binds)?;
+                let rows = timeout_at(
+                    deadline,
+                    sqlx::query_with(sqlx::AssertSqlSafe(rendered.sql), args).fetch_all(&mut *conn),
+                )
+                .await
+                .map_err(|_| SearchError::Timeout(TimeoutStage::ListQuery))??;
+                rows.iter()
+                    .map(|row| decode_map::<E>(row, &plan))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+            None => Vec::new(),
+        };
+        let cluster_args = SqliteBackend::arguments(&cluster.binds)?;
+        let row = timeout_at(
+            deadline,
+            sqlx::query_with(sqlx::AssertSqlSafe(cluster.sql), cluster_args).fetch_one(&mut *conn),
+        )
+        .await
+        .map_err(|_| SearchError::Timeout(TimeoutStage::ClusterQuery))??;
+        let total_count = SqliteBackend::count(&row)?;
+        let summaries = decode_summaries::<E>(&row, options, plan.meta)?;
+        let next_cursor = if data.len() == plan.paging.size as usize {
+            map_cursor(&self.policy, &plan, data.last())?
+        } else {
+            None
+        };
+        self.format_map_rows::<E>(&mut data)?;
         self.extensions
             .enrich_page(
                 E::META.entity_name,
@@ -330,7 +388,7 @@ impl SqliteSiftQuery {
                     data,
                     total_count,
                     summaries,
-                    next_cursor: None,
+                    next_cursor,
                 },
             )
             .await
@@ -402,7 +460,7 @@ impl SqliteSiftQuery {
         .map_err(SearchError::Sql)
     }
 
-    async fn fetch_maps<E>(
+    async fn fetch_raw_maps<E>(
         &self,
         rendered: RenderedQuery,
         plan: &QueryPlan<E>,
@@ -416,13 +474,10 @@ impl SqliteSiftQuery {
             sqlx::query_with(sqlx::AssertSqlSafe(rendered.sql), args).fetch_all(&self.pool),
         )
         .await
-        .map_err(|_| SearchError::Timeout(sift_query_sqlx_common::TimeoutStage::ListQuery))??;
-        let mut data = rows
-            .iter()
+        .map_err(|_| SearchError::Timeout(TimeoutStage::ListQuery))??;
+        rows.iter()
             .map(|row| decode_map::<E>(row, plan))
-            .collect::<Result<Vec<_>, _>>()?;
-        self.format_map_rows::<E>(&mut data)?;
-        Ok(data)
+            .collect::<Result<Vec<_>, _>>()
     }
 
     async fn fetch_count(&self, rendered: RenderedQuery) -> Result<i64, SearchError> {
@@ -432,26 +487,8 @@ impl SqliteSiftQuery {
             sqlx::query_with(sqlx::AssertSqlSafe(rendered.sql), args).fetch_one(&self.pool),
         )
         .await
-        .map_err(|_| SearchError::Timeout(sift_query_sqlx_common::TimeoutStage::ClusterQuery))??;
+        .map_err(|_| SearchError::Timeout(TimeoutStage::ClusterQuery))??;
         SqliteBackend::count(&row)
-    }
-
-    async fn fetch_cluster<E: SearchEntity>(
-        &self,
-        rendered: RenderedQuery,
-        options: Option<&SearchOptions<E>>,
-        meta: &'static sift_query_core::EntityMeta,
-    ) -> Result<(i64, Vec<SummaryValue>), SearchError> {
-        let args = SqliteBackend::arguments(&rendered.binds)?;
-        let row = timeout(
-            self.execution.timeout,
-            sqlx::query_with(sqlx::AssertSqlSafe(rendered.sql), args).fetch_one(&self.pool),
-        )
-        .await
-        .map_err(|_| SearchError::Timeout(sift_query_sqlx_common::TimeoutStage::ClusterQuery))??;
-        let total_count = SqliteBackend::count(&row)?;
-        let summaries = decode_summaries::<E>(&row, options, meta)?;
-        Ok((total_count, summaries))
     }
 
     pub(crate) fn plan_with_scopes<E: SearchEntity>(

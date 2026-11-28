@@ -144,3 +144,32 @@ fn nested_and_inside_or_rejects_mixed_phases() {
     ]);
     assert_eq!(arena.partition(), Err(ParamError::MixedPredicatePhase));
 }
+
+#[test]
+fn try_all_and_hard_limits_guard_against_u16_arena_overflow() {
+    let small = PredicateArena::try_all([
+        condition(PredicatePhase::Row),
+        condition(PredicatePhase::Row),
+    ])
+    .unwrap();
+    assert_eq!(small.nodes().len(), 3);
+
+    let too_many = (0..=usize::from(u16::MAX)).map(|_| condition(PredicatePhase::Row));
+    assert_eq!(
+        PredicateArena::try_all(too_many),
+        Err(ParamError::TooComplex("predicate node count"))
+    );
+
+    let limits = sift_query_core::QueryLimits {
+        max_conditions: usize::from(u16::MAX),
+        ..sift_query_core::QueryLimits::default()
+    };
+    assert!(
+        sift_query_core::QueryPolicy::with_hard_limits(
+            sift_query_core::ParamNames::default(),
+            limits.clone(),
+            sift_query_core::QueryHardLimits(limits),
+        )
+        .is_err()
+    );
+}

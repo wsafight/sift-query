@@ -1,6 +1,7 @@
 use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use sift_query_core::{EntityMeta, SearchEntity};
 
@@ -110,6 +111,123 @@ impl<C> ContextPoolRouter<C> {
             .get(&TypeId::of::<E>())
             .or(self.default.as_ref())
             .map(String::as_str)
+    }
+}
+
+/// Generic backend-agnostic entity and named-pool routing table.
+pub struct PoolRouterTable<S> {
+    default: Option<Arc<S>>,
+    routes: HashMap<TypeId, Arc<S>>,
+    named: HashMap<String, Arc<S>>,
+}
+
+impl<S> Clone for PoolRouterTable<S> {
+    fn clone(&self) -> Self {
+        Self {
+            default: self.default.clone(),
+            routes: self.routes.clone(),
+            named: self.named.clone(),
+        }
+    }
+}
+
+impl<S> Default for PoolRouterTable<S> {
+    fn default() -> Self {
+        Self {
+            default: None,
+            routes: HashMap::new(),
+            named: HashMap::new(),
+        }
+    }
+}
+
+impl<S> PoolRouterTable<S> {
+    #[must_use]
+    pub fn with_default(searcher: S) -> Self {
+        Self {
+            default: Some(Arc::new(searcher)),
+            ..Self::default()
+        }
+    }
+
+    #[must_use]
+    pub fn has_default(&self) -> bool {
+        self.default.is_some()
+    }
+
+    #[must_use]
+    pub fn route_count(&self) -> usize {
+        self.routes.len()
+    }
+
+    #[must_use]
+    pub fn named_count(&self) -> usize {
+        self.named.len()
+    }
+
+    #[must_use]
+    pub fn register_entity<E: SearchEntity>(mut self, searcher: S) -> Self {
+        self.routes.insert(TypeId::of::<E>(), Arc::new(searcher));
+        self
+    }
+
+    pub fn register_named(mut self, name: &str, searcher: S) -> Result<Self, PoolRouteError> {
+        let name = validate_name(name.to_owned())?;
+        if self.named.contains_key(&name) {
+            return Err(PoolRouteError::DuplicateName(name));
+        }
+        self.named.insert(name, Arc::new(searcher));
+        Ok(self)
+    }
+
+    pub fn route_entity<E: SearchEntity>(mut self, name: &str) -> Result<Self, PoolRouteError> {
+        let searcher = self
+            .named
+            .get(name)
+            .cloned()
+            .ok_or_else(|| PoolRouteError::MissingPool(name.to_owned()))?;
+        self.routes.insert(TypeId::of::<E>(), searcher);
+        Ok(self)
+    }
+
+    pub fn with_default_named(mut self, name: &str) -> Result<Self, PoolRouteError> {
+        self.default = Some(
+            self.named
+                .get(name)
+                .cloned()
+                .ok_or_else(|| PoolRouteError::MissingPool(name.to_owned()))?,
+        );
+        Ok(self)
+    }
+
+    pub fn searcher<E: SearchEntity>(&self) -> Result<Arc<S>, PoolRouteError> {
+        self.routes
+            .get(&TypeId::of::<E>())
+            .cloned()
+            .or_else(|| self.default.clone())
+            .ok_or(PoolRouteError::MissingEntity(E::META.entity_name))
+    }
+
+    pub fn named_searcher(&self, name: &str) -> Result<Arc<S>, PoolRouteError> {
+        self.named
+            .get(name)
+            .cloned()
+            .ok_or_else(|| PoolRouteError::MissingPool(name.to_owned()))
+    }
+
+    pub fn searcher_with_context<E: SearchEntity, C>(
+        &self,
+        context: &C,
+        selector: &impl PoolSelector<C>,
+    ) -> Result<Arc<S>, PoolRouteError> {
+        let name = selector.select_pool(E::META, context)?;
+        if name.is_empty() {
+            return self.searcher::<E>();
+        }
+        self.named
+            .get(&name)
+            .cloned()
+            .ok_or(PoolRouteError::MissingPool(name))
     }
 }
 

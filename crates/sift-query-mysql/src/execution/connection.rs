@@ -1,12 +1,13 @@
 use super::decode::{decode_map, decode_summaries};
+use super::helpers::{entity_cursor, map_cursor};
 use crate::*;
 use sift_query_core::{
     QueryInput, QueryTarget, RowValue, SearchEntity, SearchOptions, ServerScope,
 };
-use sift_query_sqlx_common::Backend;
+use sift_query_sqlx_common::{Backend, TimeoutStage};
 use sqlx::mysql::{MySqlConnection, MySqlRow};
 use sqlx::{FromRow, MySql};
-use tokio::time::timeout;
+use tokio::time::{Instant, timeout_at};
 
 impl MySqlSiftQuery {
     pub async fn search_list<E>(
@@ -92,31 +93,47 @@ impl MySqlSiftQuery {
         if plan.force_empty {
             return Ok(Page::empty());
         }
-        let list = self.renderer.render_list(&plan)?;
+        let list = (plan.paging.size > 0)
+            .then(|| self.renderer.render_list(&plan))
+            .transpose()?;
         let cluster = self.renderer.render_cluster(&plan, options)?;
-        let list_args = MySqlBackend::arguments(&list.binds)?;
-        let data = timeout(
-            self.execution.timeout,
-            sqlx::query_as_with::<MySql, E, _>(sqlx::AssertSqlSafe(list.sql), list_args)
-                .fetch_all(&mut *connection),
-        )
-        .await
-        .map_err(|_| SearchError::Timeout(sift_query_sqlx_common::TimeoutStage::ListQuery))??;
+        let deadline = Instant::now() + self.execution.timeout;
+        let data = match list {
+            Some(rendered) => {
+                let list_args = MySqlBackend::arguments(&rendered.binds)?;
+                timeout_at(
+                    deadline,
+                    sqlx::query_as_with::<MySql, E, _>(
+                        sqlx::AssertSqlSafe(rendered.sql),
+                        list_args,
+                    )
+                    .fetch_all(&mut *connection),
+                )
+                .await
+                .map_err(|_| SearchError::Timeout(TimeoutStage::ListQuery))??
+            }
+            None => Vec::new(),
+        };
         let cluster_args = MySqlBackend::arguments(&cluster.binds)?;
-        let row = timeout(
-            self.execution.timeout,
+        let row = timeout_at(
+            deadline,
             sqlx::query_with(sqlx::AssertSqlSafe(cluster.sql), cluster_args)
                 .fetch_one(&mut *connection),
         )
         .await
-        .map_err(|_| SearchError::Timeout(sift_query_sqlx_common::TimeoutStage::ClusterQuery))??;
+        .map_err(|_| SearchError::Timeout(TimeoutStage::ClusterQuery))??;
         let total_count = MySqlBackend::count(&row)?;
         let summaries = decode_summaries::<E>(&row, options, plan.meta)?;
+        let next_cursor = if data.len() == plan.paging.size as usize {
+            entity_cursor(&self.policy, &plan, data.last())?
+        } else {
+            None
+        };
         Ok(Page {
             data,
             total_count,
             summaries,
-            next_cursor: None,
+            next_cursor,
         })
     }
 
@@ -170,30 +187,43 @@ impl MySqlSiftQuery {
         if plan.force_empty {
             return Ok(Page::empty());
         }
-        let list = self.renderer.render_list(&plan)?;
+        let list = (plan.paging.size > 0)
+            .then(|| self.renderer.render_list(&plan))
+            .transpose()?;
         let cluster = self.renderer.render_cluster(&plan, options)?;
-        let list_args = MySqlBackend::arguments(&list.binds)?;
-        let rows = timeout(
-            self.execution.timeout,
-            sqlx::query_with(sqlx::AssertSqlSafe(list.sql), list_args).fetch_all(&mut *connection),
-        )
-        .await
-        .map_err(|_| SearchError::Timeout(sift_query_sqlx_common::TimeoutStage::ListQuery))??;
-        let mut data = rows
-            .iter()
-            .map(|row| decode_map::<E>(row, &plan))
-            .collect::<Result<Vec<_>, _>>()?;
-        self.format_map_rows::<E>(&mut data)?;
+        let deadline = Instant::now() + self.execution.timeout;
+        let mut data = match list {
+            Some(rendered) => {
+                let list_args = MySqlBackend::arguments(&rendered.binds)?;
+                let rows = timeout_at(
+                    deadline,
+                    sqlx::query_with(sqlx::AssertSqlSafe(rendered.sql), list_args)
+                        .fetch_all(&mut *connection),
+                )
+                .await
+                .map_err(|_| SearchError::Timeout(TimeoutStage::ListQuery))??;
+                rows.iter()
+                    .map(|row| decode_map::<E>(row, &plan))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+            None => Vec::new(),
+        };
         let cluster_args = MySqlBackend::arguments(&cluster.binds)?;
-        let row = timeout(
-            self.execution.timeout,
+        let row = timeout_at(
+            deadline,
             sqlx::query_with(sqlx::AssertSqlSafe(cluster.sql), cluster_args)
                 .fetch_one(&mut *connection),
         )
         .await
-        .map_err(|_| SearchError::Timeout(sift_query_sqlx_common::TimeoutStage::ClusterQuery))??;
+        .map_err(|_| SearchError::Timeout(TimeoutStage::ClusterQuery))??;
         let total_count = MySqlBackend::count(&row)?;
         let summaries = decode_summaries::<E>(&row, options, plan.meta)?;
+        let next_cursor = if data.len() == plan.paging.size as usize {
+            map_cursor(&self.policy, &plan, data.last())?
+        } else {
+            None
+        };
+        self.format_map_rows::<E>(&mut data)?;
         self.extensions
             .enrich_page(
                 E::META.entity_name,
@@ -202,7 +232,7 @@ impl MySqlSiftQuery {
                     data,
                     total_count,
                     summaries,
-                    next_cursor: None,
+                    next_cursor,
                 },
             )
             .await

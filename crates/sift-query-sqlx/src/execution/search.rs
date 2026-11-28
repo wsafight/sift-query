@@ -301,15 +301,17 @@ impl PgSiftQuery {
                         partition.as_deref(),
                         RenderRequest::Window,
                     )?)?;
-                    let fallback = prepare(self.render::<E>(
-                        &plan,
-                        "search",
-                        "window_fallback_count",
-                        partition.as_deref(),
-                        RenderRequest::Cluster(None),
-                    )?)?;
+                    let fallback = || {
+                        prepare(self.render::<E>(
+                            &plan,
+                            "search",
+                            "window_fallback_count",
+                            partition.as_deref(),
+                            RenderRequest::Cluster(None),
+                        )?)
+                    };
                     return self
-                        .execute_window_typed::<E, E>(window, fallback, deadline)
+                        .execute_window_typed::<E, E, _>(window, fallback, deadline)
                         .await;
                 }
                 let list = (plan.paging.size > 0)
@@ -437,13 +439,15 @@ impl PgSiftQuery {
                         partition.as_deref(),
                         RenderRequest::Window,
                     )?)?;
-                    let fallback = prepare(self.render::<E>(
-                        &plan,
-                        "search_map",
-                        "window_fallback_count",
-                        partition.as_deref(),
-                        RenderRequest::Cluster(None),
-                    )?)?;
+                    let fallback = || {
+                        prepare(self.render::<E>(
+                            &plan,
+                            "search_map",
+                            "window_fallback_count",
+                            partition.as_deref(),
+                            RenderRequest::Cluster(None),
+                        )?)
+                    };
                     let mut page = self
                         .execute_window_map(&plan, window, fallback, deadline)
                         .await?;

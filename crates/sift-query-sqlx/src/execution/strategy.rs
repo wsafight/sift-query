@@ -5,7 +5,11 @@ use sqlx::pool::PoolConnection;
 use sqlx::postgres::PgRow;
 use tokio::time::{Instant, timeout_at};
 
-use crate::execution::io::{PreparedPgQuery, close_hard, fetch_cluster, fetch_maps, fetch_typed};
+use crate::execution::io::{
+    PreparedPgQuery, close_hard, configure_local_statement_timeout, configure_statement_timeout,
+    execute_cluster_raw, execute_maps_raw, execute_typed_raw, fetch_cluster, fetch_maps,
+    fetch_typed, finish_statement, finish_statement_err, map_sql_error,
+};
 use crate::{Page, PgSearchError, PgSiftQuery, RowMap, TimeoutStage};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -45,15 +49,38 @@ impl PgSiftQuery {
         match self.execution.strategy {
             ExecutionStrategy::SequentialBestEffort => {
                 let connection = self.acquire(deadline).await?;
+                let connection =
+                    configure_statement_timeout(connection, deadline, TimeoutStage::ListQuery)
+                        .await?;
                 let (connection, data) = match list {
                     Some(rendered) => {
-                        fetch_typed::<R>(connection, rendered, deadline, TimeoutStage::ListQuery)
-                            .await?
+                        let (connection, result) = execute_typed_raw::<R>(
+                            connection,
+                            rendered,
+                            deadline,
+                            TimeoutStage::ListQuery,
+                        )
+                        .await?;
+                        match result {
+                            Ok(rows) => (connection, rows),
+                            Err(error) => {
+                                finish_statement::<()>(
+                                    connection,
+                                    Err(error),
+                                    TimeoutStage::ListQuery,
+                                )
+                                .await?;
+                                unreachable!()
+                            }
+                        }
                     }
                     None => (connection, Vec::new()),
                 };
+                let (connection, cluster_result) =
+                    execute_cluster_raw(connection, cluster, options, E::META, deadline).await?;
                 let (_, (total_count, summaries)) =
-                    fetch_cluster(connection, cluster, options, E::META, deadline).await?;
+                    finish_statement_err(connection, cluster_result, TimeoutStage::ClusterQuery)
+                        .await?;
                 Ok(Page {
                     data,
                     total_count,
@@ -102,15 +129,31 @@ impl PgSiftQuery {
                 let mut connection = self.acquire(deadline).await?;
                 connection.close_on_drop();
                 let connection = begin_snapshot(connection, isolation, deadline).await?;
+                let connection = configure_local_statement_timeout(
+                    connection,
+                    deadline,
+                    TimeoutStage::ListQuery,
+                )
+                .await?;
                 let (connection, data) = match list {
                     Some(rendered) => {
-                        fetch_typed::<R>(connection, rendered, deadline, TimeoutStage::ListQuery)
-                            .await?
+                        let (connection, result) = execute_typed_raw::<R>(
+                            connection,
+                            rendered,
+                            deadline,
+                            TimeoutStage::ListQuery,
+                        )
+                        .await?;
+                        (
+                            connection,
+                            result.map_err(|error| map_sql_error(error, TimeoutStage::ListQuery))?,
+                        )
                     }
                     None => (connection, Vec::new()),
                 };
-                let (connection, (total_count, summaries)) =
-                    fetch_cluster(connection, cluster, options, E::META, deadline).await?;
+                let (connection, cluster_result) =
+                    execute_cluster_raw(connection, cluster, options, E::META, deadline).await?;
+                let (total_count, summaries) = cluster_result?;
                 let mut connection = commit(connection, deadline).await?;
                 connection.return_to_pool().await;
                 Ok(Page {
@@ -134,12 +177,33 @@ impl PgSiftQuery {
         match self.execution.strategy {
             ExecutionStrategy::SequentialBestEffort => {
                 let connection = self.acquire(deadline).await?;
+                let connection =
+                    configure_statement_timeout(connection, deadline, TimeoutStage::ListQuery)
+                        .await?;
                 let (connection, data) = match list {
-                    Some(rendered) => fetch_maps(connection, rendered, plan, deadline).await?,
+                    Some(rendered) => {
+                        let (connection, result) =
+                            execute_maps_raw(connection, rendered, plan, deadline).await?;
+                        match result {
+                            Ok(rows) => (connection, rows),
+                            Err(error) => {
+                                finish_statement_err::<()>(
+                                    connection,
+                                    Err(error),
+                                    TimeoutStage::ListQuery,
+                                )
+                                .await?;
+                                unreachable!()
+                            }
+                        }
+                    }
                     None => (connection, Vec::new()),
                 };
+                let (connection, cluster_result) =
+                    execute_cluster_raw(connection, cluster, options, E::META, deadline).await?;
                 let (_, (total_count, summaries)) =
-                    fetch_cluster(connection, cluster, options, E::META, deadline).await?;
+                    finish_statement_err(connection, cluster_result, TimeoutStage::ClusterQuery)
+                        .await?;
                 Ok(Page {
                     data,
                     total_count,
@@ -188,12 +252,23 @@ impl PgSiftQuery {
                 let mut connection = self.acquire(deadline).await?;
                 connection.close_on_drop();
                 let connection = begin_snapshot(connection, isolation, deadline).await?;
+                let connection = configure_local_statement_timeout(
+                    connection,
+                    deadline,
+                    TimeoutStage::ListQuery,
+                )
+                .await?;
                 let (connection, data) = match list {
-                    Some(rendered) => fetch_maps(connection, rendered, plan, deadline).await?,
+                    Some(rendered) => {
+                        let (connection, result) =
+                            execute_maps_raw(connection, rendered, plan, deadline).await?;
+                        (connection, result?)
+                    }
                     None => (connection, Vec::new()),
                 };
-                let (connection, (total_count, summaries)) =
-                    fetch_cluster(connection, cluster, options, E::META, deadline).await?;
+                let (connection, cluster_result) =
+                    execute_cluster_raw(connection, cluster, options, E::META, deadline).await?;
+                let (total_count, summaries) = cluster_result?;
                 let mut connection = commit(connection, deadline).await?;
                 connection.return_to_pool().await;
                 Ok(Page {

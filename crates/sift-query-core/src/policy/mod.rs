@@ -5,7 +5,7 @@ use crate::{
 use sift_query_algorithm::BoundedLruMap;
 use std::any::TypeId;
 use std::borrow::Cow;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 pub(crate) mod budget;
 mod fingerprint;
@@ -29,10 +29,15 @@ pub struct QueryPolicy {
     codecs: CodecRegistry,
     operators: Vec<crate::RegisteredOperator>,
     fingerprint: u64,
-    validated_names: Arc<Mutex<BoundedLruMap<TypeId, Result<(), ParamError>>>>,
-    validated_codecs: Arc<Mutex<BoundedLruMap<TypeId, Result<(), ParamError>>>>,
-    codec_bindings: Arc<Mutex<BoundedLruMap<TypeId, Result<Arc<[CodecBinding]>, ParamError>>>>,
-    validated_operators: Arc<Mutex<BoundedLruMap<TypeId, Result<(), ParamError>>>>,
+    validation_cache: Arc<RwLock<BoundedLruMap<TypeId, EntityValidationEntry>>>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct EntityValidationEntry {
+    names: Option<Result<(), ParamError>>,
+    codecs: Option<Result<(), ParamError>>,
+    codec_bindings: Option<Result<Arc<[CodecBinding]>, ParamError>>,
+    operators: Option<Result<(), ParamError>>,
 }
 
 #[derive(Debug, Clone)]
@@ -62,10 +67,7 @@ impl Default for QueryPolicy {
             filters: Vec::new(),
             codecs: CodecRegistry::default(),
             operators: Vec::new(),
-            validated_names: name_cache(),
-            validated_codecs: validation_cache(),
-            codec_bindings: codec_binding_cache(),
-            validated_operators: validation_cache(),
+            validation_cache: validation_cache(),
         };
         policy.recompute_fingerprint();
         policy
@@ -100,10 +102,7 @@ impl QueryPolicy {
             filters: Vec::new(),
             codecs: CodecRegistry::default(),
             operators: Vec::new(),
-            validated_names: name_cache(),
-            validated_codecs: validation_cache(),
-            codec_bindings: codec_binding_cache(),
-            validated_operators: validation_cache(),
+            validation_cache: validation_cache(),
         };
         policy.recompute_fingerprint();
         Ok(policy)
@@ -138,8 +137,7 @@ impl QueryPolicy {
     #[must_use]
     pub fn with_codec<C: Codec + 'static>(mut self, codec: C) -> Self {
         self.codecs.push(codec);
-        self.validated_codecs = validation_cache();
-        self.codec_bindings = codec_binding_cache();
+        self.validation_cache = validation_cache();
         self.recompute_fingerprint();
         self
     }
@@ -173,7 +171,7 @@ impl QueryPolicy {
             field_type: operator.types().map_or(input_type, |types| types.0),
             input_type,
         });
-        self.validated_operators = validation_cache();
+        self.validation_cache = validation_cache();
         self.recompute_fingerprint();
         Ok(self)
     }
@@ -230,7 +228,7 @@ impl QueryPolicy {
     pub fn with_param_names(mut self, names: ParamNames) -> Result<Self, ConfigError> {
         names.validate()?;
         self.names = names;
-        self.validated_names = name_cache();
+        self.validation_cache = validation_cache();
         self.recompute_fingerprint();
         Ok(self)
     }
@@ -260,6 +258,10 @@ impl QueryPolicy {
         self.cursor_codec.as_ref()
     }
 
+    pub(crate) fn has_raw_filters(&self) -> bool {
+        !self.filters.is_empty()
+    }
+
     pub(crate) fn apply_raw_filters<'raw, E: crate::SearchEntity>(
         &self,
         raw: &'raw RawParams,
@@ -287,19 +289,8 @@ impl QueryPolicy {
     }
 }
 
-fn name_cache() -> Arc<Mutex<BoundedLruMap<TypeId, Result<(), ParamError>>>> {
-    validation_cache()
-}
-
-fn validation_cache() -> Arc<Mutex<BoundedLruMap<TypeId, Result<(), ParamError>>>> {
-    Arc::new(Mutex::new(
-        BoundedLruMap::new(256).expect("fixed nonzero metadata cache capacity"),
-    ))
-}
-
-fn codec_binding_cache()
--> Arc<Mutex<BoundedLruMap<TypeId, Result<Arc<[CodecBinding]>, ParamError>>>> {
-    Arc::new(Mutex::new(
+fn validation_cache() -> Arc<RwLock<BoundedLruMap<TypeId, EntityValidationEntry>>> {
+    Arc::new(RwLock::new(
         BoundedLruMap::new(256).expect("fixed nonzero metadata cache capacity"),
     ))
 }

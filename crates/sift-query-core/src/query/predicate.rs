@@ -388,59 +388,72 @@ impl PredicateArena {
     }
 
     fn push(&mut self, node: PredicateNode) -> NodeId {
-        let id = u16::try_from(self.nodes.len()).expect("predicate budget exceeds u16");
+        self.try_push(node).expect("predicate budget exceeds u16")
+    }
+
+    fn try_push(&mut self, node: PredicateNode) -> Result<NodeId, ParamError> {
+        let id = u16::try_from(self.nodes.len())
+            .map_err(|_| ParamError::TooComplex("predicate node count"))?;
         self.nodes.push(node);
-        NodeId(id)
+        Ok(NodeId(id))
     }
-
     pub(crate) fn combine_and(arenas: impl IntoIterator<Item = Self>) -> Self {
-        Self::combine(arenas, true)
+        Self::try_combine(arenas, true).expect("predicate budget exceeds u16")
     }
-
     /// Combines independent predicates with AND.
     pub fn all(arenas: impl IntoIterator<Item = Self>) -> Self {
         Self::combine_and(arenas)
     }
+    /// Fallibly combines independent predicates with AND.
+    pub fn try_all(arenas: impl IntoIterator<Item = Self>) -> Result<Self, ParamError> {
+        Self::try_combine(arenas, true)
+    }
 
-    fn combine(arenas: impl IntoIterator<Item = Self>, and: bool) -> Self {
+    fn try_combine(arenas: impl IntoIterator<Item = Self>, and: bool) -> Result<Self, ParamError> {
         let mut output = Self::default();
         let mut roots = Vec::new();
         for arena in arenas {
             let Some(root) = arena.root else {
                 if !and {
-                    return Self::default();
+                    return Ok(Self::default());
                 }
                 continue;
             };
-            let offset = u16::try_from(output.nodes.len()).expect("predicate budget exceeds u16");
+            let offset = u16::try_from(output.nodes.len())
+                .map_err(|_| ParamError::TooComplex("predicate node count"))?;
             for node in arena.nodes {
-                output.nodes.push(remap_node(node, offset));
+                output.nodes.push(try_remap_node(node, offset)?);
             }
-            roots.push(NodeId(
-                root.0
-                    .checked_add(offset)
-                    .expect("predicate budget exceeds u16"),
-            ));
+            let mapped = root
+                .0
+                .checked_add(offset)
+                .ok_or(ParamError::TooComplex("predicate node count"))?;
+            roots.push(NodeId(mapped));
         }
         output.root = match roots.len() {
             0 => None,
             1 => roots.first().copied(),
-            _ => Some(output.push(if and {
+            _ => Some(output.try_push(if and {
                 PredicateNode::And(roots)
             } else {
                 PredicateNode::Or(roots)
-            })),
+            })?),
         };
-        output
+        Ok(output)
     }
 
     pub(crate) fn combine_or(arenas: impl IntoIterator<Item = Self>) -> Self {
-        Self::combine(arenas, false)
+        Self::try_combine(arenas, false).expect("predicate budget exceeds u16")
     }
 
     /// Combines independent predicates with OR.
     pub fn any(arenas: impl IntoIterator<Item = Self>) -> Self {
         Self::combine_or(arenas)
+    }
+
+    /// Fallibly combines independent predicates with OR.
+    pub fn try_any(arenas: impl IntoIterator<Item = Self>) -> Result<Self, ParamError> {
+        Self::try_combine(arenas, false)
     }
 
     /// Splits an AND-separable tree into WHERE and HAVING trees.
@@ -558,32 +571,22 @@ fn collapse(arena: &mut PredicateArena, children: Vec<NodeId>, and: bool) -> Opt
     }
 }
 
-fn remap_node(node: PredicateNode, offset: u16) -> PredicateNode {
-    match node {
+fn try_remap_node(node: PredicateNode, offset: u16) -> Result<PredicateNode, ParamError> {
+    let remap = |children: Vec<NodeId>| -> Result<Vec<NodeId>, ParamError> {
+        children
+            .into_iter()
+            .map(|id| {
+                id.0.checked_add(offset)
+                    .map(NodeId)
+                    .ok_or(ParamError::TooComplex("predicate node count"))
+            })
+            .collect()
+    };
+    Ok(match node {
         PredicateNode::Condition(condition) => PredicateNode::Condition(condition),
-        PredicateNode::And(children) => PredicateNode::And(
-            children
-                .into_iter()
-                .map(|id| {
-                    NodeId(
-                        id.0.checked_add(offset)
-                            .expect("predicate budget exceeds u16"),
-                    )
-                })
-                .collect(),
-        ),
-        PredicateNode::Or(children) => PredicateNode::Or(
-            children
-                .into_iter()
-                .map(|id| {
-                    NodeId(
-                        id.0.checked_add(offset)
-                            .expect("predicate budget exceeds u16"),
-                    )
-                })
-                .collect(),
-        ),
-    }
+        PredicateNode::And(children) => PredicateNode::And(remap(children)?),
+        PredicateNode::Or(children) => PredicateNode::Or(remap(children)?),
+    })
 }
 
 const fn merge_phase(left: PhaseClass, right: PhaseClass) -> PhaseClass {

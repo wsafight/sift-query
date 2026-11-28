@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use sift_query_core::{EntityMeta, QueryInput, SearchEntity, ServerScope};
+use sift_query_sqlx_common::{PoolRouteError as CommonPoolRouteError, PoolRouterTable};
 use sqlx::postgres::PgPool;
 
 use crate::{Page, PgSearchError, PgSiftQuery, RowMap};
@@ -23,6 +24,18 @@ pub enum PoolRouteError {
     Query(#[from] PgSearchError),
 }
 
+impl From<CommonPoolRouteError> for PoolRouteError {
+    fn from(error: CommonPoolRouteError) -> Self {
+        match error {
+            CommonPoolRouteError::InvalidName => Self::InvalidName,
+            CommonPoolRouteError::DuplicateName(name) => Self::DuplicateName(name),
+            CommonPoolRouteError::MissingPool(name) => Self::MissingPool(name),
+            CommonPoolRouteError::MissingEntity(entity) => Self::MissingEntity(entity),
+            CommonPoolRouteError::Rejected(_) => Self::Rejected("pool selection rejected"),
+        }
+    }
+}
+
 /// Application-owned, nonblocking resolver for trusted request context.
 /// Client query parameters are never supplied to this hook.
 pub trait PgPoolSelector<C>: Send + Sync {
@@ -36,9 +49,7 @@ pub trait PgPoolSelector<C>: Send + Sync {
 /// Immutable server-owned entity-to-pool routing table.
 #[derive(Clone, Default)]
 pub struct PgPoolRouter {
-    default: Option<Arc<PgSiftQuery>>,
-    routes: HashMap<TypeId, Arc<PgSiftQuery>>,
-    named: HashMap<String, Arc<PgSiftQuery>>,
+    inner: PoolRouterTable<PgSiftQuery>,
     labels: HashMap<TypeId, String>,
     default_label: String,
 }
@@ -47,9 +58,9 @@ impl std::fmt::Debug for PgPoolRouter {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("PgPoolRouter")
-            .field("has_default", &self.default.is_some())
-            .field("route_count", &self.routes.len())
-            .field("named_pool_count", &self.named.len())
+            .field("has_default", &self.inner.has_default())
+            .field("route_count", &self.inner.route_count())
+            .field("named_pool_count", &self.inner.named_count())
             .finish_non_exhaustive()
     }
 }
@@ -57,39 +68,29 @@ impl std::fmt::Debug for PgPoolRouter {
 impl PgPoolRouter {
     #[must_use]
     pub fn new(default: PgPool) -> Self {
-        Self {
-            default: Some(Arc::new(PgSiftQuery::new(default))),
-            routes: HashMap::new(),
-            default_label: "default".to_owned(),
-            ..Self::default()
-        }
+        Self::with_searcher(PgSiftQuery::new(default))
     }
 
     #[must_use]
     pub fn with_searcher(default: PgSiftQuery) -> Self {
         Self {
-            default: Some(Arc::new(default)),
-            routes: HashMap::new(),
+            inner: PoolRouterTable::with_default(default),
+            labels: HashMap::new(),
             default_label: "default".to_owned(),
-            ..Self::default()
         }
     }
 
     #[must_use]
     pub fn register_entity<E: SearchEntity>(mut self, searcher: PgSiftQuery) -> Self {
-        self.routes.insert(TypeId::of::<E>(), Arc::new(searcher));
+        self.inner = self.inner.register_entity::<E>(searcher);
         self.labels
             .insert(TypeId::of::<E>(), E::META.entity_name.to_owned());
         self
     }
 
     #[must_use]
-    pub fn register_pool<E: SearchEntity>(mut self, pool: PgPool) -> Self {
-        self.routes
-            .insert(TypeId::of::<E>(), Arc::new(PgSiftQuery::new(pool)));
-        self.labels
-            .insert(TypeId::of::<E>(), E::META.entity_name.to_owned());
-        self
+    pub fn register_pool<E: SearchEntity>(self, pool: PgPool) -> Self {
+        self.register_entity::<E>(PgSiftQuery::new(pool))
     }
 
     /// Names are stable configuration labels, never tenant/user identifiers.
@@ -98,51 +99,25 @@ impl PgPoolRouter {
         name: &str,
         searcher: PgSiftQuery,
     ) -> Result<Self, PoolRouteError> {
-        if name.is_empty()
-            || name.len() > 64
-            || !name
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-        {
-            return Err(PoolRouteError::InvalidName);
-        }
-        if self.named.contains_key(name) {
-            return Err(PoolRouteError::DuplicateName(name.to_owned()));
-        }
-        self.named.insert(name.to_owned(), Arc::new(searcher));
+        self.inner = self.inner.register_named(name, searcher)?;
         Ok(self)
     }
 
     pub fn route_entity<E: SearchEntity>(mut self, name: &str) -> Result<Self, PoolRouteError> {
-        let searcher = self
-            .named
-            .get(name)
-            .cloned()
-            .ok_or_else(|| PoolRouteError::MissingPool(name.to_owned()))?;
-        self.routes.insert(TypeId::of::<E>(), searcher);
+        self.inner = self.inner.route_entity::<E>(name)?;
         self.labels.insert(TypeId::of::<E>(), name.to_owned());
         Ok(self)
     }
 
     pub fn with_default_named(mut self, name: &str) -> Result<Self, PoolRouteError> {
-        self.default = Some(
-            self.named
-                .get(name)
-                .cloned()
-                .ok_or_else(|| PoolRouteError::MissingPool(name.to_owned()))?,
-        );
+        self.inner = self.inner.with_default_named(name)?;
         name.clone_into(&mut self.default_label);
         Ok(self)
     }
 
     /// Selected searcher exposes normal query, scan and export entry points.
     pub fn searcher<E: SearchEntity>(&self) -> Result<Arc<PgSiftQuery>, PoolRouteError> {
-        let result = self
-            .routes
-            .get(&TypeId::of::<E>())
-            .cloned()
-            .or_else(|| self.default.clone())
-            .ok_or(PoolRouteError::MissingEntity(E::META.entity_name))?;
+        let result = self.inner.searcher::<E>()?;
         let label = self
             .labels
             .get(&TypeId::of::<E>())
@@ -161,12 +136,9 @@ impl PgPoolRouter {
             return self.searcher::<E>();
         }
         // Unknown selection fails closed, with no cross-pool fallback.
-        let searcher = self
-            .named
-            .get(&name)
-            .ok_or_else(|| PoolRouteError::MissingPool(name.clone()))?;
+        let searcher = self.inner.named_searcher(&name)?;
         tracing::debug!(entity = E::META.entity_name, backend = "postgres", pool_route = %name, "selected PostgreSQL pool from trusted context");
-        Ok(Arc::clone(searcher))
+        Ok(searcher)
     }
 
     pub async fn search_map<E: SearchEntity>(

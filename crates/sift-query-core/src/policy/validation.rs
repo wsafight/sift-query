@@ -1,4 +1,4 @@
-use super::{QueryPolicy, is_name};
+use super::{EntityValidationEntry, QueryPolicy, is_name};
 use crate::{Codec, ParamError};
 use std::any::TypeId;
 use std::sync::Arc;
@@ -12,20 +12,19 @@ impl QueryPolicy {
     ) -> Result<(), ParamError> {
         let key = TypeId::of::<E>();
         let bindings = {
-            let mut cache = self
-                .codec_bindings
-                .lock()
+            let cache = self
+                .validation_cache
+                .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            cache.get(&key).cloned()
+            cache
+                .peek(&key)
+                .and_then(|entry| entry.codec_bindings.clone())
         };
         let bindings = if let Some(bindings) = bindings {
             bindings?
         } else {
             let result = self.build_codec_bindings::<E>();
-            self.codec_bindings
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .insert(key, result.clone());
+            self.update_validation_entry(key, |entry| entry.codec_bindings = Some(result.clone()));
             result?
         };
         for binding in bindings.iter() {
@@ -49,22 +48,61 @@ impl QueryPolicy {
         Ok(Arc::from(bindings))
     }
 
+    /// Validates codecs, operators, and (when `include_names` is true) entity
+    /// parameter names in a single shared-lock cache lookup on the hot path.
+    pub(crate) fn validate_parse_prereqs<E: crate::SearchEntity>(
+        &self,
+        include_names: bool,
+    ) -> Result<(), ParamError> {
+        let key = TypeId::of::<E>();
+        let cached = {
+            let cache = self
+                .validation_cache
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            cache.peek(&key).map(|entry| {
+                (
+                    entry.codecs.clone(),
+                    entry.operators.clone(),
+                    if include_names {
+                        entry.names.clone()
+                    } else {
+                        None
+                    },
+                )
+            })
+        };
+        if let Some((Some(codecs), Some(operators), names)) = cached
+            && (!include_names || names.is_some())
+        {
+            codecs?;
+            operators?;
+            if let Some(names) = names {
+                names?;
+            }
+            return Ok(());
+        }
+        self.validate_codecs::<E>()?;
+        self.validate_operators::<E>()?;
+        if include_names {
+            self.validate_entity_names::<E>()?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn validate_operators<E: crate::SearchEntity>(&self) -> Result<(), ParamError> {
         let key = TypeId::of::<E>();
         {
-            let mut cache = self
-                .validated_operators
-                .lock()
+            let cache = self
+                .validation_cache
+                .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(result) = cache.get(&key) {
+            if let Some(result) = cache.peek(&key).and_then(|entry| entry.operators.as_ref()) {
                 return result.clone();
             }
         }
         let result = self.validate_operators_uncached::<E>();
-        self.validated_operators
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(key, result.clone());
+        self.update_validation_entry(key, |entry| entry.operators = Some(result.clone()));
         result
     }
 
@@ -95,19 +133,16 @@ impl QueryPolicy {
     pub(crate) fn validate_entity_names<E: crate::SearchEntity>(&self) -> Result<(), ParamError> {
         let key = TypeId::of::<E>();
         {
-            let mut cache = self
-                .validated_names
-                .lock()
+            let cache = self
+                .validation_cache
+                .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(result) = cache.get(&key) {
+            if let Some(result) = cache.peek(&key).and_then(|entry| entry.names.as_ref()) {
                 return result.clone();
             }
         }
         let result = crate::protocol::parser::validate_entity_names::<E>(self);
-        self.validated_names
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(key, result.clone());
+        self.update_validation_entry(key, |entry| entry.names = Some(result.clone()));
         result
     }
 
@@ -142,19 +177,16 @@ impl QueryPolicy {
     pub(crate) fn validate_codecs<E: crate::SearchEntity>(&self) -> Result<(), ParamError> {
         let key = TypeId::of::<E>();
         {
-            let mut cache = self
-                .validated_codecs
-                .lock()
+            let cache = self
+                .validation_cache
+                .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(result) = cache.get(&key) {
+            if let Some(result) = cache.peek(&key).and_then(|entry| entry.codecs.as_ref()) {
                 return result.clone();
             }
         }
         let result = self.validate_codecs_uncached::<E>();
-        self.validated_codecs
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(key, result.clone());
+        self.update_validation_entry(key, |entry| entry.codecs = Some(result.clone()));
         result
     }
 
@@ -191,5 +223,19 @@ impl QueryPolicy {
             }
         }
         Ok(())
+    }
+
+    fn update_validation_entry(
+        &self,
+        key: TypeId,
+        update: impl FnOnce(&mut EntityValidationEntry),
+    ) {
+        let mut cache = self
+            .validation_cache
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut entry = cache.get(&key).cloned().unwrap_or_default();
+        update(&mut entry);
+        cache.insert(key, entry);
     }
 }

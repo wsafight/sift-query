@@ -143,31 +143,19 @@ impl QueryShapeCache {
             return Err(RenderError::WrongTarget);
         }
         let key = CacheKey::Template(Arc::new(TemplateKey::new(plan, request)?));
-        // A hit on the current MRU entry cannot change eviction order. Let
-        // repeated readers proceed together, without weakening exact LRU.
+        // Serve any cached template hit under a shared read lock to avoid
+        // write-lock contention and duplicate hash lookups on mixed workloads.
         {
             let state = self
                 .state
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(CacheEntry::Template(template)) = state.entries.peek_mru(&key) {
+            if let Some(CacheEntry::Template(template)) = state.entries.peek(&key) {
                 let template = Arc::clone(template);
                 increment_hits(&state.hits);
                 drop(state);
                 return template.bind(plan).map(|query| (query, true));
             }
-        }
-        {
-            let mut state = self
-                .state
-                .write()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(CacheEntry::Template(template)) = state.entries.get(&key).cloned() {
-                increment_hits(&state.hits);
-                drop(state);
-                return template.bind(plan).map(|query| (query, true));
-            }
-            state.misses = state.misses.saturating_add(1);
         }
         // Never hold the cache lock while rendering or rebuilding binds.
         let query = request.render(renderer, plan)?;
@@ -176,6 +164,13 @@ impl QueryShapeCache {
             .state
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(CacheEntry::Template(existing)) = state.entries.peek(&key) {
+            let existing = Arc::clone(existing);
+            increment_hits(&state.hits);
+            drop(state);
+            return existing.bind(plan).map(|bound| (bound, true));
+        }
+        state.misses = state.misses.saturating_add(1);
         if state.entries.insert(key, CacheEntry::Template(template)) {
             state.evictions = state.evictions.saturating_add(1);
         }

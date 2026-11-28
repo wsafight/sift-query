@@ -84,11 +84,16 @@ pub(super) fn ensure_within_hard_limits(
         && limits.max_page_size <= hard.max_page_size
         && limits.max_offset <= hard.max_offset
         && limits.timeout_ms <= hard.timeout_ms;
-    if within {
-        Ok(())
-    } else {
-        Err(ConfigError::Invalid(
+    if !within {
+        return Err(ConfigError::Invalid(
             "ordinary policy cannot exceed hard limits".to_owned(),
-        ))
+        ));
     }
+    let max_arena_budget = usize::from(u16::MAX / 2);
+    if limits.max_conditions > max_arena_budget || limits.max_group_nodes > max_arena_budget {
+        return Err(ConfigError::Invalid(
+            "condition and group node limits cannot exceed predicate arena capacity".to_owned(),
+        ));
+    }
+    Ok(())
 }

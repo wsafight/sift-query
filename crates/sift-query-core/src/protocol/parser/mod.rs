@@ -28,11 +28,13 @@ impl<'policy> ParamParser<'policy> {
 
     pub fn parse<E: SearchEntity>(&self, raw: &RawParams) -> Result<UserQuery<E>, ParamError> {
         validate_raw_limits(raw, self.policy)?;
-        self.policy.validate_codecs::<E>()?;
-        self.policy.validate_operators::<E>()?;
+        let has_filters = self.policy.has_raw_filters();
+        self.policy.validate_parse_prereqs::<E>(!has_filters)?;
         let raw = self.policy.apply_raw_filters::<E>(raw)?;
-        validate_raw_limits(&raw, self.policy)?;
-        self.policy.validate_entity_names::<E>()?;
+        if has_filters {
+            validate_raw_limits(&raw, self.policy)?;
+            self.policy.validate_entity_names::<E>()?;
+        }
         let mut controls = Controls::default();
         let mut fields: IndexMap<ConditionKey<'_>, FieldAccumulator<'_>> = IndexMap::new();
 

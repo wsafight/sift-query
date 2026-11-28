@@ -62,7 +62,21 @@ pub(crate) async fn fetch_typed<E>(
 where
     E: Send + Unpin + for<'row> FromRow<'row, PgRow>,
 {
-    let mut connection = configure_statement_timeout(connection, deadline, stage).await?;
+    let connection = configure_statement_timeout(connection, deadline, stage).await?;
+    let (connection, result) =
+        execute_typed_raw::<E>(connection, prepared, deadline, stage).await?;
+    finish_statement(connection, result, stage).await
+}
+
+pub(crate) async fn execute_typed_raw<E>(
+    mut connection: PoolConnection<Postgres>,
+    prepared: PreparedPgQuery,
+    deadline: Instant,
+    stage: TimeoutStage,
+) -> Result<(PoolConnection<Postgres>, Result<Vec<E>, sqlx::Error>), PgSearchError>
+where
+    E: Send + Unpin + for<'row> FromRow<'row, PgRow>,
+{
     tracing::debug!(
         query_shape_id = prepared.shape_id.0,
         "executing SiftQuery list"
@@ -78,13 +92,14 @@ where
         close_hard(connection).await;
         return Err(PgSearchError::Timeout(stage));
     };
-    let (connection, rows) = finish_statement(connection, result, stage).await?;
-    tracing::debug!(
-        list_duration_us = elapsed_micros(started),
-        rows_returned = rows.len(),
-        "completed SiftQuery list"
-    );
-    Ok((connection, rows))
+    if let Ok(rows) = &result {
+        tracing::debug!(
+            list_duration_us = elapsed_micros(started),
+            rows_returned = rows.len(),
+            "completed SiftQuery list"
+        );
+    }
+    Ok((connection, result))
 }
 
 pub(crate) async fn fetch_maps<E: SearchEntity>(
@@ -93,8 +108,18 @@ pub(crate) async fn fetch_maps<E: SearchEntity>(
     plan: &QueryPlan<E>,
     deadline: Instant,
 ) -> Result<(PoolConnection<Postgres>, Vec<RowMap>), PgSearchError> {
-    let mut connection =
+    let connection =
         configure_statement_timeout(connection, deadline, TimeoutStage::ListQuery).await?;
+    let (connection, result) = execute_maps_raw(connection, prepared, plan, deadline).await?;
+    finish_statement_err(connection, result, TimeoutStage::ListQuery).await
+}
+
+pub(crate) async fn execute_maps_raw<E: SearchEntity>(
+    mut connection: PoolConnection<Postgres>,
+    prepared: PreparedPgQuery,
+    plan: &QueryPlan<E>,
+    deadline: Instant,
+) -> Result<(PoolConnection<Postgres>, Result<Vec<RowMap>, PgSearchError>), PgSearchError> {
     tracing::debug!(
         query_shape_id = prepared.shape_id.0,
         "executing SiftQuery map list"
@@ -109,20 +134,27 @@ pub(crate) async fn fetch_maps<E: SearchEntity>(
         close_hard(connection).await;
         return Err(PgSearchError::Timeout(TimeoutStage::ListQuery));
     };
-    let (connection, rows) = finish_statement(connection, result, TimeoutStage::ListQuery).await?;
     let list_duration = elapsed_micros(started);
-    let decode_started = Instant::now();
-    let decoded = rows
-        .iter()
-        .map(|row| decode_map(row, plan))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(PgSearchError::Decode)?;
-    tracing::debug!(
-        list_duration_us = list_duration,
-        decode_duration_us = elapsed_micros(decode_started),
-        rows_returned = decoded.len(),
-        "completed SiftQuery map list"
-    );
+    let decoded = match result {
+        Ok(rows) => {
+            let decode_started = Instant::now();
+            let decoded = rows
+                .iter()
+                .map(|row| decode_map(row, plan))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(PgSearchError::Decode);
+            if let Ok(decoded) = &decoded {
+                tracing::debug!(
+                    list_duration_us = list_duration,
+                    decode_duration_us = elapsed_micros(decode_started),
+                    rows_returned = decoded.len(),
+                    "completed SiftQuery map list"
+                );
+            }
+            decoded
+        }
+        Err(error) => Err(external_sql_error(error, TimeoutStage::ListQuery)),
+    };
     Ok((connection, decoded))
 }
 
@@ -133,8 +165,21 @@ pub(crate) async fn fetch_cluster<E: SearchEntity>(
     meta: &'static sift_query_core::EntityMeta,
     deadline: Instant,
 ) -> Result<(PoolConnection<Postgres>, (i64, Vec<SummaryValue>)), PgSearchError> {
-    let mut connection =
+    let connection =
         configure_statement_timeout(connection, deadline, TimeoutStage::ClusterQuery).await?;
+    let (connection, result) =
+        execute_cluster_raw(connection, prepared, options, meta, deadline).await?;
+    finish_statement_err(connection, result, TimeoutStage::ClusterQuery).await
+}
+
+pub(crate) async fn execute_cluster_raw<E: SearchEntity>(
+    mut connection: PoolConnection<Postgres>,
+    prepared: PreparedPgQuery,
+    options: Option<&SearchOptions<E>>,
+    meta: &'static sift_query_core::EntityMeta,
+    deadline: Instant,
+) -> Result<(PoolConnection<Postgres>, Result<(i64, Vec<SummaryValue>), PgSearchError>), PgSearchError>
+{
     tracing::debug!(
         query_shape_id = prepared.shape_id.0,
         "executing SiftQuery cluster"
@@ -149,18 +194,28 @@ pub(crate) async fn fetch_cluster<E: SearchEntity>(
         close_hard(connection).await;
         return Err(PgSearchError::Timeout(TimeoutStage::ClusterQuery));
     };
-    let (connection, row) =
-        finish_statement(connection, result, TimeoutStage::ClusterQuery).await?;
     let cluster_duration = elapsed_micros(started);
-    let decode_started = Instant::now();
-    let total_count = row.try_get::<i64, _>("sq_count")?;
-    let summaries = decode_summaries(&row, options, meta)?;
-    tracing::debug!(
-        cluster_duration_us = cluster_duration,
-        decode_duration_us = elapsed_micros(decode_started),
-        "completed SiftQuery cluster"
-    );
-    Ok((connection, (total_count, summaries)))
+    let decoded = match result {
+        Ok(row) => {
+            let decode_started = Instant::now();
+            let decoded = row
+                .try_get::<i64, _>("sq_count")
+                .map_err(PgSearchError::Sql)
+                .and_then(|total_count| {
+                    decode_summaries(&row, options, meta).map(|summaries| (total_count, summaries))
+                });
+            if decoded.is_ok() {
+                tracing::debug!(
+                    cluster_duration_us = cluster_duration,
+                    decode_duration_us = elapsed_micros(decode_started),
+                    "completed SiftQuery cluster"
+                );
+            }
+            decoded
+        }
+        Err(error) => Err(external_sql_error(error, TimeoutStage::ClusterQuery)),
+    };
+    Ok((connection, decoded))
 }
 
 pub(crate) async fn fetch_sum<T>(
@@ -262,17 +317,35 @@ pub(crate) async fn fetch_cluster_external<E: SearchEntity>(
 }
 
 pub(crate) async fn configure_statement_timeout(
+    connection: PoolConnection<Postgres>,
+    deadline: Instant,
+    stage: TimeoutStage,
+) -> Result<PoolConnection<Postgres>, PgSearchError> {
+    set_statement_timeout(connection, deadline, stage, false).await
+}
+
+pub(crate) async fn configure_local_statement_timeout(
+    connection: PoolConnection<Postgres>,
+    deadline: Instant,
+    stage: TimeoutStage,
+) -> Result<PoolConnection<Postgres>, PgSearchError> {
+    set_statement_timeout(connection, deadline, stage, true).await
+}
+
+async fn set_statement_timeout(
     mut connection: PoolConnection<Postgres>,
     deadline: Instant,
     stage: TimeoutStage,
+    is_local: bool,
 ) -> Result<PoolConnection<Postgres>, PgSearchError> {
     let remaining = deadline.saturating_duration_since(Instant::now());
     let milliseconds = remaining.as_millis().saturating_sub(10).max(1);
     let milliseconds = u64::try_from(milliseconds).unwrap_or(u64::MAX);
     let result = timeout_at(
         deadline,
-        sqlx::query_scalar::<_, String>("SELECT set_config('statement_timeout', $1, false)")
+        sqlx::query_scalar::<_, String>("SELECT set_config('statement_timeout', $1, $2)")
             .bind(milliseconds.to_string())
+            .bind(is_local)
             .fetch_one(&mut *connection),
     )
     .await;
@@ -285,8 +358,21 @@ pub(crate) async fn configure_statement_timeout(
 }
 
 pub(crate) async fn finish_statement<T>(
-    mut connection: PoolConnection<Postgres>,
+    connection: PoolConnection<Postgres>,
     result: Result<T, sqlx::Error>,
+    stage: TimeoutStage,
+) -> Result<(PoolConnection<Postgres>, T), PgSearchError> {
+    finish_statement_err(
+        connection,
+        result.map_err(|error| external_sql_error(error, stage)),
+        stage,
+    )
+    .await
+}
+
+pub(crate) async fn finish_statement_err<T>(
+    mut connection: PoolConnection<Postgres>,
+    result: Result<T, PgSearchError>,
     stage: TimeoutStage,
 ) -> Result<(PoolConnection<Postgres>, T), PgSearchError> {
     // Restore the session default statement_timeout before returning the
@@ -316,13 +402,13 @@ pub(crate) async fn finish_statement<T>(
             if reset_error.is_some() {
                 close_hard(connection).await;
             }
-            if is_statement_timeout(&error) {
-                Err(PgSearchError::Timeout(stage))
-            } else {
-                Err(PgSearchError::Sql(error))
-            }
+            Err(error)
         }
     }
+}
+
+pub(crate) fn map_sql_error(error: sqlx::Error, stage: TimeoutStage) -> PgSearchError {
+    external_sql_error(error, stage)
 }
 
 fn is_statement_timeout(error: &sqlx::Error) -> bool {

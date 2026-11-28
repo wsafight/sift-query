@@ -1,9 +1,10 @@
 use crate::{
     EnrichContext, ExtensionError, ExtensionFuture, Page, PageEnricher, RowMap, TypedPageEnricher,
 };
+use futures_util::future::try_join_all;
 use sift_query_algorithm::TtlLruMap;
 use sift_query_core::RowValue;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
@@ -147,154 +148,230 @@ impl LabelEnricher {
         }));
         Ok(self)
     }
-    async fn apply(
-        &self,
-        mut page: Page<RowMap>,
-        context: EnrichContext,
-    ) -> Result<Page<RowMap>, ExtensionError> {
+
+    fn validate_config(&self) -> Result<(), ExtensionError> {
         if self.timeout.is_zero() || self.max_ids == 0 {
             return Err(ExtensionError::rejected("label", "invalid label budget"));
         }
         if self.bindings.len() > 32 {
             return Err(ExtensionError::rejected("label", "too many label bindings"));
         }
-        if page.data.is_empty() {
-            return Ok(page);
-        }
-        let mut groups = BTreeMap::<String, BTreeSet<String>>::new();
-        let mut seen_sources = BTreeSet::new();
-        for (source, key) in &self.bindings {
-            if !seen_sources.insert(source) {
+        let mut seen_sources = HashSet::with_capacity(self.bindings.len());
+        for (source, _) in &self.bindings {
+            if !seen_sources.insert(source.as_str()) {
                 return Err(ExtensionError::rejected(
                     "label",
                     "duplicate source binding",
                 ));
             }
-            groups.entry(key.clone()).or_default();
-            for row in &page.data {
-                if let Some(id) = row.get(source).and_then(row_key) {
-                    groups.entry(key.clone()).or_default().insert(id);
-                }
-            }
         }
+        Ok(())
+    }
+
+    async fn resolve_groups(
+        &self,
+        groups: BTreeMap<String, BTreeSet<String>>,
+        context: EnrichContext,
+    ) -> Result<HashMap<String, Option<HashMap<String, String>>>, ExtensionError> {
         if groups.values().map(BTreeSet::len).sum::<usize>() > self.max_ids {
             return Err(ExtensionError::LabelIdLimit(self.max_ids));
         }
+        let mut jobs = Vec::with_capacity(groups.len());
         for (key, ids) in groups {
-            let loaders = self
-                .loaders
-                .iter()
-                .filter(|loader| loader.supports(&key))
-                .collect::<Vec<_>>();
-            if loaders.len() != 1 {
+            let mut matching = self.loaders.iter().filter(|loader| loader.supports(&key));
+            let Some(loader) = matching.next().cloned() else {
+                return Err(ExtensionError::rejected(
+                    "label",
+                    "missing or ambiguous loader",
+                ));
+            };
+            if matching.next().is_some() {
                 return Err(ExtensionError::rejected(
                     "label",
                     "missing or ambiguous loader",
                 ));
             }
-            let mut labels = HashMap::new();
-            let mut misses = Vec::new();
+            jobs.push((key, ids, loader));
+        }
+        let results = try_join_all(
+            jobs.into_iter()
+                .map(|(key, ids, loader)| self.resolve_group(key, ids, loader, context)),
+        )
+        .await?;
+        Ok(results.into_iter().collect())
+    }
+
+    async fn resolve_group(
+        &self,
+        key: String,
+        ids: BTreeSet<String>,
+        loader: Arc<dyn LabelLoader>,
+        context: EnrichContext,
+    ) -> Result<(String, Option<HashMap<String, String>>), ExtensionError> {
+        let mut labels = HashMap::with_capacity(ids.len());
+        let mut misses = Vec::new();
+        if let Some(cache) = &self.cache {
+            let now = cache.origin.elapsed();
+            let mut entries = cache
+                .entries
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut lookup = (context.entity_name.to_owned(), key.clone(), String::new());
             for id in &ids {
-                let cached = self.cache.as_ref().and_then(|cache| {
-                    cache
-                        .entries
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .get(
-                            &(context.entity_name.to_owned(), key.clone(), id.clone()),
-                            cache.origin.elapsed(),
-                        )
-                        .cloned()
-                });
-                if let Some(label) = cached {
-                    labels.insert(id.clone(), label);
+                lookup.2.clear();
+                lookup.2.push_str(id);
+                if let Some(label) = entries.get(&lookup, now) {
+                    labels.insert(id.clone(), label.clone());
                 } else {
                     misses.push(id.clone());
                 }
             }
-            if !misses.is_empty() {
-                let loaded = timeout(self.timeout, async {
-                    let _permit = self
-                        .gate
-                        .acquire()
-                        .await
-                        .map_err(|_| ExtensionError::rejected("label", "loader gate closed"))?;
-                    loaders[0].load(&key, misses.clone()).await
-                })
-                .await
-                .map_err(|_| ExtensionError::LabelTimeout)
-                .and_then(std::convert::identity);
-                let loaded = match loaded {
-                    Ok(loaded) => loaded,
-                    Err(_) if matches!(self.failure, LabelFailurePolicy::KeepRows) => {
-                        tracing::warn!(
-                            outcome = "label_unavailable",
-                            "label loading failed; keeping rows"
-                        );
-                        continue;
-                    }
-                    Err(error) => return Err(error),
-                };
-                let mut fresh = HashMap::new();
-                for label in loaded {
-                    if !misses.contains(&label.id) || fresh.insert(label.id, label.label).is_some()
-                    {
-                        return Err(ExtensionError::rejected(
-                            "label",
-                            "loader returned duplicate or unrequested IDs",
-                        ));
-                    }
+        } else {
+            misses.extend(ids);
+        }
+        if !misses.is_empty() {
+            let requested: HashSet<String> = misses.iter().cloned().collect();
+            let fetched = timeout(self.timeout, async {
+                let _permit = self
+                    .gate
+                    .acquire()
+                    .await
+                    .map_err(|_| ExtensionError::rejected("label", "loader gate closed"))?;
+                loader.load(&key, misses).await
+            })
+            .await
+            .map_err(|_| ExtensionError::LabelTimeout)
+            .and_then(std::convert::identity);
+            let fetched = match fetched {
+                Ok(items) => items,
+                Err(_) if matches!(self.failure, LabelFailurePolicy::KeepRows) => {
+                    tracing::warn!(
+                        outcome = "label_unavailable",
+                        "label loading failed; keeping rows"
+                    );
+                    return Ok((key, None));
                 }
-                if let Some(cache) = &self.cache {
-                    let now = cache.origin.elapsed();
-                    let mut cache = cache
-                        .entries
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    for (id, label) in &fresh {
-                        cache.insert(
-                            (context.entity_name.to_owned(), key.clone(), id.clone()),
-                            label.clone(),
-                            now,
-                        );
-                    }
+                Err(error) => return Err(error),
+            };
+            let mut fresh = HashMap::with_capacity(fetched.len());
+            for label in fetched {
+                if !requested.contains(&label.id) || fresh.insert(label.id, label.label).is_some() {
+                    return Err(ExtensionError::rejected(
+                        "label",
+                        "loader returned duplicate or unrequested IDs",
+                    ));
                 }
-                labels.extend(fresh);
             }
-            for (source, binding_key) in &self.bindings {
-                if binding_key != &key {
-                    continue;
+            if let Some(cache) = &self.cache {
+                let now = cache.origin.elapsed();
+                let mut entries = cache
+                    .entries
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                for (id, label) in &fresh {
+                    entries.insert(
+                        (context.entity_name.to_owned(), key.clone(), id.clone()),
+                        label.clone(),
+                        now,
+                    );
                 }
-                let target = format!("{source}Label");
-                for row in &mut page.data {
-                    if row.contains_key(&target) {
-                        return Err(ExtensionError::rejected(
-                            "label",
-                            "label target already exists",
-                        ));
+            }
+            labels.extend(fresh);
+        }
+        Ok((key, Some(labels)))
+    }
+
+    async fn apply(
+        &self,
+        mut page: Page<RowMap>,
+        context: EnrichContext,
+    ) -> Result<Page<RowMap>, ExtensionError> {
+        self.validate_config()?;
+        if page.data.is_empty() {
+            return Ok(page);
+        }
+        let mut groups = BTreeMap::<String, BTreeSet<String>>::new();
+        for (source, key) in &self.bindings {
+            let ids = groups.entry(key.clone()).or_default();
+            for row in &page.data {
+                if let Some(id) = row.get(source).and_then(row_key) {
+                    ids.insert(id);
+                }
+            }
+        }
+        let resolved = self.resolve_groups(groups, context).await?;
+        for (source, key) in &self.bindings {
+            let Some(Some(labels)) = resolved.get(key) else {
+                continue;
+            };
+            let target = format!("{source}Label");
+            for row in &mut page.data {
+                if row.contains_key(&target) {
+                    return Err(ExtensionError::rejected(
+                        "label",
+                        "label target already exists",
+                    ));
+                }
+                match row
+                    .get(source)
+                    .and_then(row_key)
+                    .and_then(|id| labels.get(&id))
+                {
+                    Some(label) => {
+                        row.insert(target.clone(), RowValue::Text(label.clone()));
                     }
-                    match row
-                        .get(source)
-                        .and_then(row_key)
-                        .and_then(|id| labels.get(&id))
-                    {
-                        Some(label) => {
-                            row.insert(target.clone(), RowValue::Text(label.clone()));
+                    None => match self.missing {
+                        MissingLabelPolicy::Omit => {}
+                        MissingLabelPolicy::Null => {
+                            row.insert(target.clone(), RowValue::Null);
                         }
-                        None => match self.missing {
-                            MissingLabelPolicy::Omit => {}
-                            MissingLabelPolicy::Null => {
-                                row.insert(target.clone(), RowValue::Null);
-                            }
-                            MissingLabelPolicy::Error => {
-                                return Err(ExtensionError::rejected("label", "missing label"));
-                            }
-                        },
-                    }
+                        MissingLabelPolicy::Error => {
+                            return Err(ExtensionError::rejected("label", "missing label"));
+                        }
+                    },
                 }
             }
         }
         Ok(page)
+    }
+
+    async fn apply_typed<T: LabelTarget>(
+        &self,
+        mut rows: Vec<T>,
+        context: EnrichContext,
+    ) -> Result<Vec<T>, ExtensionError> {
+        self.validate_config()?;
+        if rows.is_empty() {
+            return Ok(rows);
+        }
+        let mut groups = BTreeMap::<String, BTreeSet<String>>::new();
+        for (source, key) in &self.bindings {
+            let ids = groups.entry(key.clone()).or_default();
+            for row in &rows {
+                if let Some(id) = row.label_id(source) {
+                    ids.insert(id);
+                }
+            }
+        }
+        let resolved = self.resolve_groups(groups, context).await?;
+        for (source, key) in &self.bindings {
+            let Some(Some(labels)) = resolved.get(key) else {
+                continue;
+            };
+            for row in &mut rows {
+                match row.label_id(source).and_then(|id| labels.get(&id)) {
+                    Some(label) => row.set_label(source, Some(label))?,
+                    None => match self.missing {
+                        MissingLabelPolicy::Omit => {}
+                        MissingLabelPolicy::Null => row.set_label(source, None)?,
+                        MissingLabelPolicy::Error => {
+                            return Err(ExtensionError::rejected("label", "missing label"));
+                        }
+                    },
+                }
+            }
+        }
+        Ok(rows)
     }
 }
 impl PageEnricher for LabelEnricher {
@@ -304,48 +381,9 @@ impl PageEnricher for LabelEnricher {
     }
 }
 impl<T: LabelTarget> TypedPageEnricher<T> for LabelEnricher {
-    fn enrich(&self, mut rows: Vec<T>, context: EnrichContext) -> ExtensionFuture<Vec<T>> {
+    fn enrich(&self, rows: Vec<T>, context: EnrichContext) -> ExtensionFuture<Vec<T>> {
         let enricher = self.clone();
-        Box::pin(async move {
-            let maps = rows
-                .iter()
-                .map(|row| {
-                    enricher
-                        .bindings
-                        .iter()
-                        .filter_map(|(source, _)| {
-                            row.label_id(source)
-                                .map(|id| (source.clone(), RowValue::Text(id)))
-                        })
-                        .collect()
-                })
-                .collect();
-            let page = enricher
-                .apply(
-                    Page {
-                        data: maps,
-                        total_count: 0,
-                        summaries: Vec::new(),
-                        next_cursor: None,
-                    },
-                    context,
-                )
-                .await?;
-            for (row, map) in rows.iter_mut().zip(&page.data) {
-                for (source, _) in &enricher.bindings {
-                    if let Some(value) = map.get(&format!("{source}Label")) {
-                        row.set_label(
-                            source,
-                            match value {
-                                RowValue::Text(label) => Some(label),
-                                _ => None,
-                            },
-                        )?;
-                    }
-                }
-            }
-            Ok(rows)
-        })
+        Box::pin(async move { enricher.apply_typed(rows, context).await })
     }
 }
 #[derive(Debug, Clone, Default)]

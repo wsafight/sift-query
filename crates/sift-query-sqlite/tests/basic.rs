@@ -525,3 +525,73 @@ async fn sqlite_observer_reports_success_and_parameter_failure() {
     assert_eq!(observations[2].outcome, "budget");
     assert_eq!(observations[2].rows_returned, 1);
 }
+
+#[tokio::test]
+async fn sqlite_cursor_pagination_and_size_zero_match_postgres_contract() {
+    let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+    sqlx::query(
+        "CREATE TABLE codec_users (id INTEGER NOT NULL, status INTEGER NOT NULL, tags TEXT NOT NULL)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO codec_users (id, status, tags) VALUES (1, 1, '10'), (2, 2, '20'), (3, 1, '30')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let codec = sift_query_core::CursorCodec::new([7_u8; 32]).unwrap();
+    let policy = QueryPolicy::default()
+        .with_cursor_codec(codec)
+        .with_codec(EnumCodec::new("status", "status", [("enabled", 1), ("disabled", 2)]).unwrap())
+        .with_codec(ListResultCodec::new("tags", "tags", "|", ValueType::I64, 4).unwrap());
+    let search = SqliteSiftQuery::new(pool)
+        .with_policy(policy, sift_query_sqlite::SqliteExecutionPolicy::default());
+
+    // search_map_cursor must encode raw cursor values before EnumCodec formats status to Text.
+    let first = search
+        .search_map_cursor::<CodecUser>(
+            &RawParams::parse("sort=id&order=asc&size=2&cursor=").unwrap(),
+            &ServerScope::unrestricted(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(first.data.len(), 2);
+    assert!(first.has_more);
+    assert_eq!(first.data[0]["status"], RowValue::Text("enabled".to_owned()));
+    let next = first.next_cursor.expect("first page cursor");
+    let second = search
+        .search_map_cursor::<CodecUser>(
+            &RawParams::parse(&format!("sort=id&order=asc&size=2&cursor={next}")).unwrap(),
+            &ServerScope::unrestricted(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(second.data.len(), 1);
+    assert!(!second.has_more);
+    assert_eq!(second.data[0]["id"], RowValue::I64(3));
+
+    // search and search_map must also populate next_cursor in cursor mode and handle size=0.
+    let map_page = search
+        .search_map::<CodecUser>(
+            &RawParams::parse("size=2&cursor=").unwrap(),
+            &ServerScope::unrestricted(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(map_page.total_count, 3);
+    assert!(map_page.next_cursor.is_some());
+
+    let empty_page = search
+        .search::<CodecUser>(
+            &RawParams::parse("size=0").unwrap(),
+            &ServerScope::unrestricted(),
+        )
+        .await
+        .unwrap();
+    assert!(empty_page.data.is_empty());
+    assert_eq!(empty_page.total_count, 3);
+    assert!(empty_page.next_cursor.is_none());
+}

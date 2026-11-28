@@ -43,10 +43,41 @@ impl PgSiftQuery {
         let prepared = self.prepare_facet_queries(&plan, requests)?;
         let mut output = Vec::with_capacity(prepared.len());
         let deadline = self.deadline::<E>();
+        let connection = self.acquire(deadline).await?;
+        let mut connection =
+            configure_statement_timeout(connection, deadline, TimeoutStage::ClusterQuery).await?;
         for (prepared, field, value_type) in prepared {
-            let connection = self.acquire(deadline).await?;
-            output.push(fetch_facet(connection, prepared, field, value_type, deadline).await?);
+            let result = timeout_at(
+                deadline,
+                sqlx::query_with(prepared.sql(), prepared.arguments).fetch_all(&mut *connection),
+            )
+            .await;
+            let Ok(result) = result else {
+                crate::execution::io::close_hard(connection).await;
+                return Err(PgSearchError::Timeout(TimeoutStage::ClusterQuery));
+            };
+            let rows = match result {
+                Ok(rows) => rows,
+                Err(error) => {
+                    finish_statement::<()>(connection, Err(error), TimeoutStage::ClusterQuery)
+                        .await?;
+                    unreachable!()
+                }
+            };
+            match decode_facet_rows(&rows, field, value_type) {
+                Ok(facet) => output.push(facet),
+                Err(error) => {
+                    crate::execution::io::finish_statement_err::<()>(
+                        connection,
+                        Err(error),
+                        TimeoutStage::ClusterQuery,
+                    )
+                    .await?;
+                    unreachable!()
+                }
+            }
         }
+        finish_statement(connection, Ok(()), TimeoutStage::ClusterQuery).await?;
         Ok(output)
     }
 
@@ -183,29 +214,6 @@ impl PgSiftQuery {
         }
         Ok(output)
     }
-}
-
-async fn fetch_facet(
-    connection: sqlx::pool::PoolConnection<sqlx::Postgres>,
-    prepared: crate::execution::io::PreparedPgQuery,
-    field: &'static str,
-    value_type: sift_query_core::ValueType,
-    deadline: Instant,
-) -> Result<FacetResult, PgSearchError> {
-    let mut connection =
-        configure_statement_timeout(connection, deadline, TimeoutStage::ClusterQuery).await?;
-    let result = timeout_at(
-        deadline,
-        sqlx::query_with(prepared.sql(), prepared.arguments).fetch_all(&mut *connection),
-    )
-    .await;
-    let Ok(result) = result else {
-        crate::execution::io::close_hard(connection).await;
-        return Err(PgSearchError::Timeout(TimeoutStage::ClusterQuery));
-    };
-    let (_connection, rows) =
-        finish_statement(connection, result, TimeoutStage::ClusterQuery).await?;
-    decode_facet_rows(&rows, field, value_type)
 }
 
 async fn fetch_facet_external(

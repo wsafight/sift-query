@@ -125,15 +125,17 @@ impl PgSiftQuery {
                         partition.as_deref(),
                         RenderRequest::Window,
                     )?)?;
-                    let fallback = prepare(self.render::<E>(
-                        &plan,
-                        "search_as",
-                        "window_fallback_count",
-                        partition.as_deref(),
-                        RenderRequest::Cluster(None),
-                    )?)?;
+                    let fallback = || {
+                        prepare(self.render::<E>(
+                            &plan,
+                            "search_as",
+                            "window_fallback_count",
+                            partition.as_deref(),
+                            RenderRequest::Cluster(None),
+                        )?)
+                    };
                     return self
-                        .execute_window_typed::<E, P>(window, fallback, deadline)
+                        .execute_window_typed::<E, P, _>(window, fallback, deadline)
                         .await;
                 }
                 let list = (plan.paging.size > 0)

@@ -5,7 +5,7 @@
 //! the cache.
 
 use std::any::TypeId;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 use sift_query_algorithm::BoundedLruMap;
 use sift_query_core::{
@@ -407,11 +407,11 @@ fn missing_node() -> RenderError {
     RenderError::InvalidCondition("template predicate or bind value is missing".to_owned())
 }
 
-type Cache = Mutex<BoundedLruMap<TemplateKey, Arc<Template>>>;
+type Cache = RwLock<BoundedLruMap<TemplateKey, Arc<Template>>>;
 
 fn cache() -> &'static Cache {
     static CACHE: OnceLock<Cache> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(BoundedLruMap::new(256).expect("fixed cache capacity")))
+    CACHE.get_or_init(|| RwLock::new(BoundedLruMap::new(512).expect("fixed cache capacity")))
 }
 
 pub(super) fn render_cached<E, F>(
@@ -428,19 +428,21 @@ where
         return render();
     };
     {
-        let mut state = cache()
-            .lock()
+        let state = cache()
+            .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(template) = state.get(&key).cloned() {
+        if let Some(template) = state.peek(&key).cloned() {
             drop(state);
             return template.bind(plan);
         }
     }
     let output = render()?;
     let template = Arc::new(Template::new(plan, &request, &output)?);
-    cache()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .insert(key, template);
+    let mut state = cache()
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if state.peek(&key).is_none() {
+        state.insert(key, template);
+    }
     Ok(output)
 }

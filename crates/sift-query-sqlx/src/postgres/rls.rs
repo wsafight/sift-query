@@ -97,21 +97,41 @@ impl RlsContext {
         self.apply(&mut *transaction).await
     }
     async fn apply(&self, connection: &mut PgConnection) -> Result<(), PgSearchError> {
+        self.apply_with_timeout(connection, None).await
+    }
+
+    async fn apply_with_timeout(
+        &self,
+        connection: &mut PgConnection,
+        timeout_ms: Option<&str>,
+    ) -> Result<(), PgSearchError> {
+        let total =
+            usize::from(self.role.is_some()) + self.values.len() + usize::from(timeout_ms.is_some());
+        if total == 0 {
+            return Ok(());
+        }
+        let mut keys = Vec::with_capacity(total);
+        let mut vals = Vec::with_capacity(total);
         if let Some(role) = &self.role {
-            sqlx::query("SELECT set_config('role', $1, true)")
-                .bind(role)
-                .execute(&mut *connection)
-                .await
-                .map_err(|_| context_error())?;
+            keys.push("role");
+            vals.push(role.as_str());
         }
         for (key, value) in &self.values {
-            sqlx::query("SELECT set_config($1, $2, true)")
-                .bind(key)
-                .bind(value)
-                .execute(&mut *connection)
-                .await
-                .map_err(|_| context_error())?;
+            keys.push(key.as_str());
+            vals.push(value.as_str());
         }
+        if let Some(ms) = timeout_ms {
+            keys.push("statement_timeout");
+            vals.push(ms);
+        }
+        sqlx::query(
+            "SELECT set_config(k, v, true) FROM unnest($1::text[], $2::text[]) AS t(k, v)",
+        )
+        .bind(&keys)
+        .bind(&vals)
+        .execute(&mut *connection)
+        .await
+        .map_err(|_| context_error())?;
         Ok(())
     }
 }
@@ -232,15 +252,13 @@ impl PgSiftQuery {
             sqlx::query("BEGIN READ ONLY")
                 .execute(&mut *connection)
                 .await?;
-            context.apply(&mut connection).await?;
             let milliseconds = deadline
                 .saturating_duration_since(Instant::now())
                 .as_millis()
                 .max(1)
                 .to_string();
-            sqlx::query("SELECT set_config('statement_timeout', $1, true)")
-                .bind(milliseconds)
-                .execute(&mut *connection)
+            context
+                .apply_with_timeout(&mut connection, Some(&milliseconds))
                 .await?;
             Ok::<_, PgSearchError>(())
         })

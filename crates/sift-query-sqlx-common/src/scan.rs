@@ -3,10 +3,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_core::Stream;
+use futures_util::StreamExt;
 use sift_query_core::{PagingMode, QueryPlan, SearchEntity};
-use tokio::sync::Semaphore;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tokio::time::{Instant, timeout_at};
 
-use crate::SearchError;
+use crate::{SearchError, TimeoutStage};
 
 pub type SearchStream<T> = Pin<Box<dyn Stream<Item = Result<T, SearchError>> + Send + 'static>>;
 pub type ScanFuture<T> =
@@ -69,4 +71,74 @@ pub fn scan_plan<E: SearchEntity>(
 
 pub fn default_scan_gates() -> (Arc<Semaphore>, Arc<Semaphore>) {
     (Arc::new(Semaphore::new(4)), Arc::new(Semaphore::new(16)))
+}
+
+struct BoundScanState<T> {
+    active: Arc<Semaphore>,
+    waiting: Arc<Semaphore>,
+    permit: Option<OwnedSemaphorePermit>,
+    stream: SearchStream<T>,
+    policy: ScanPolicy,
+    deadline: Option<Instant>,
+    count: u32,
+}
+
+/// Applies scan concurrency gates, row budget, deadline, and cooperative yielding.
+pub fn bound_scan<T: Send + 'static>(
+    active: Arc<Semaphore>,
+    waiting: Arc<Semaphore>,
+    stream: SearchStream<T>,
+    policy: ScanPolicy,
+) -> SearchStream<T> {
+    let state = BoundScanState {
+        active,
+        waiting,
+        permit: None,
+        stream,
+        policy,
+        deadline: None,
+        count: 0,
+    };
+    Box::pin(futures_util::stream::try_unfold(state, |mut state| async move {
+        let deadline = *state.deadline.get_or_insert_with(|| {
+            Instant::now()
+                .checked_add(state.policy.timeout)
+                .unwrap_or_else(Instant::now)
+        });
+        if state.permit.is_none() {
+            let permit = if let Ok(permit) = Arc::clone(&state.active).try_acquire_owned() {
+                permit
+            } else {
+                let waiter = state
+                    .waiting
+                    .clone()
+                    .try_acquire_owned()
+                    .map_err(|_| SearchError::ScanQueueFull)?;
+                let permit = timeout_at(deadline, Arc::clone(&state.active).acquire_owned())
+                    .await
+                    .map_err(|_| SearchError::Timeout(TimeoutStage::Scan))?
+                    .map_err(|_| SearchError::ScanQueueFull)?;
+                drop(waiter);
+                permit
+            };
+            state.permit = Some(permit);
+        }
+        let next = timeout_at(deadline, state.stream.next())
+            .await
+            .map_err(|_| SearchError::Timeout(TimeoutStage::Scan))?;
+        let Some(row) = next else {
+            return Ok(None);
+        };
+        let row = row?;
+        if state.count == state.policy.max_rows {
+            return Err(SearchError::ScanLimitExceeded {
+                max_rows: state.policy.max_rows,
+            });
+        }
+        state.count += 1;
+        if state.count.is_multiple_of(state.policy.batch_size) {
+            tokio::task::yield_now().await;
+        }
+        Ok(Some((row, state)))
+    }))
 }
